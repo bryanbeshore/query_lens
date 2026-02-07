@@ -1,5 +1,3 @@
-require "anthropic"
-
 module QueryLens
   class SqlGenerator
     SYSTEM_PROMPT = <<~PROMPT
@@ -23,47 +21,36 @@ module QueryLens
       %{schema}
     PROMPT
 
-    def initialize(schema_prompt:, api_key: nil, model: nil)
+    def initialize(schema_prompt:, model: nil)
       @schema_prompt = schema_prompt
-      @api_key = api_key || QueryLens.configuration.anthropic_api_key
       @model = model || QueryLens.configuration.model
     end
 
     def generate(messages:)
-      raise "Anthropic API key not configured" unless @api_key
-
-      client = Anthropic::Client.new(api_key: @api_key)
-
       system = SYSTEM_PROMPT % {
         schema: @schema_prompt,
         max_rows: QueryLens.configuration.max_rows
       }
 
-      response = client.messages.create(
-        model: @model,
-        max_tokens: 2048,
-        system: system,
-        messages: messages
-      )
+      chat = RubyLLM.chat(model: @model)
+      chat.with_instructions(system)
 
-      content = extract_text(response)
+      # Add all prior messages as context without making API calls
+      history = messages.is_a?(Array) ? messages.map(&:symbolize_keys) : []
+      history[0..-2].each do |msg|
+        chat.add_message(role: msg[:role].to_sym, content: msg[:content])
+      end
+
+      # Send the final message which triggers the API call
+      last = history.last
+      response = chat.ask(last[:content])
+      content = response.content.to_s
+
       sql = extract_sql(content)
-
       { explanation: extract_explanation(content), sql: sql, raw: content }
     end
 
     private
-
-    def extract_text(response)
-      if response.respond_to?(:content)
-        block = response.content&.first
-        block.respond_to?(:text) ? block.text.to_s : ""
-      elsif response.is_a?(Hash)
-        response.dig("content", 0, "text") || response.dig(:content, 0, :text) || ""
-      else
-        ""
-      end
-    end
 
     def extract_sql(content)
       match = content.match(/```sql\s*\n?(.*?)\n?```/m)

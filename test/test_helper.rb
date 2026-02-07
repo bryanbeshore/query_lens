@@ -7,10 +7,9 @@ require "webmock/minitest"
 WebMock.disable_net_connect!
 
 class ActiveSupport::TestCase
-  # Setup test schema
   setup do
     QueryLens.reset_configuration!
-    QueryLens.configure do |config|
+    RubyLLM.configure do |config|
       config.anthropic_api_key = "test-api-key"
     end
   end

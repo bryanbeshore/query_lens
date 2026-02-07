@@ -11,7 +11,7 @@ class QueryLens::AiControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "generate returns SQL from Claude" do
+  test "generate returns SQL from AI" do
     stub_request(:post, "https://api.anthropic.com/v1/messages")
       .to_return(
         status: 200,
@@ -22,6 +22,7 @@ class QueryLens::AiControllerTest < ActionDispatch::IntegrationTest
           role: "assistant",
           content: [{ type: "text", text: "Count of all users.\n\n```sql\nSELECT COUNT(*) AS total FROM users\n```" }],
           model: "claude-sonnet-4-5-20250929",
+          stop_reason: "end_turn",
           usage: { input_tokens: 100, output_tokens: 50 }
         }.to_json
       )

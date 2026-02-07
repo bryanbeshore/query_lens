@@ -7,8 +7,8 @@ class QueryLens::SqlGeneratorTest < ActiveSupport::TestCase
     )
   end
 
-  test "generates SQL from Claude API response" do
-    stub_anthropic_response(
+  test "generates SQL from API response" do
+    stub_llm_response(
       "Here's a query to count users.\n\n```sql\nSELECT COUNT(*) AS total_users FROM users\n```"
     )
 
@@ -19,7 +19,7 @@ class QueryLens::SqlGeneratorTest < ActiveSupport::TestCase
   end
 
   test "extracts SQL from code fences" do
-    stub_anthropic_response(
+    stub_llm_response(
       "Some explanation.\n\n```sql\nSELECT * FROM accounts WHERE plan = 'pro'\n```\n\nMore text."
     )
 
@@ -29,7 +29,7 @@ class QueryLens::SqlGeneratorTest < ActiveSupport::TestCase
   end
 
   test "returns nil sql when no code fences in response" do
-    stub_anthropic_response("I'm not sure how to answer that question.")
+    stub_llm_response("I'm not sure how to answer that question.")
 
     result = @generator.generate(messages: [{ role: "user", content: "What is love?" }])
 
@@ -37,18 +37,24 @@ class QueryLens::SqlGeneratorTest < ActiveSupport::TestCase
     assert_includes result[:explanation], "not sure"
   end
 
-  test "raises error when API key is not configured" do
-    QueryLens.configure { |c| c.anthropic_api_key = nil }
-    generator = QueryLens::SqlGenerator.new(schema_prompt: "test")
+  test "passes conversation history to the model" do
+    stub_llm_response(
+      "Broken down by month.\n\n```sql\nSELECT DATE_TRUNC('month', created_at) AS month, COUNT(*) FROM users GROUP BY 1\n```"
+    )
 
-    assert_raises(RuntimeError, "Anthropic API key not configured") do
-      generator.generate(messages: [{ role: "user", content: "test" }])
-    end
+    messages = [
+      { role: "user", content: "How many users?" },
+      { role: "assistant", content: "```sql\nSELECT COUNT(*) FROM users\n```" },
+      { role: "user", content: "Break that down by month" }
+    ]
+
+    result = @generator.generate(messages: messages)
+    assert_includes result[:sql], "GROUP BY"
   end
 
   private
 
-  def stub_anthropic_response(text)
+  def stub_llm_response(text)
     stub_request(:post, "https://api.anthropic.com/v1/messages")
       .to_return(
         status: 200,
@@ -59,6 +65,7 @@ class QueryLens::SqlGeneratorTest < ActiveSupport::TestCase
           role: "assistant",
           content: [{ type: "text", text: text }],
           model: "claude-sonnet-4-5-20250929",
+          stop_reason: "end_turn",
           usage: { input_tokens: 100, output_tokens: 50 }
         }.to_json
       )

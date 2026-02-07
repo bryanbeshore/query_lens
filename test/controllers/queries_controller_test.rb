@@ -67,7 +67,7 @@ class QueryLens::QueriesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "execute respects max_rows configuration" do
-    QueryLens.configure { |c| c.max_rows = 1; c.anthropic_api_key = "test" }
+    QueryLens.configure { |c| c.max_rows = 1 }
 
     post query_lens.execute_path, params: { sql: "SELECT * FROM users" }, as: :json
     assert_response :success
@@ -79,7 +79,6 @@ class QueryLens::QueriesControllerTest < ActionDispatch::IntegrationTest
 
   test "authentication blocks unauthorized access" do
     QueryLens.configure do |c|
-      c.anthropic_api_key = "test"
       c.authentication = ->(controller) { false }
     end
 

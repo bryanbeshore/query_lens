@@ -1,3 +1,4 @@
+require "ruby_llm"
 require "query_lens/version"
 require "query_lens/configuration"
 require "query_lens/engine"
