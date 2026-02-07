@@ -119,4 +119,119 @@ class QueryLens::QueriesControllerTest < ActionDispatch::IntegrationTest
     get query_lens.root_path
     assert_response :unauthorized
   end
+
+  # ── Excluded table enforcement ──
+
+  test "execute blocks queries against excluded tables" do
+    QueryLens.configure { |c| c.excluded_tables = %w[users] }
+
+    post query_lens.execute_path, params: { sql: "SELECT * FROM users" }, as: :json
+    assert_response :unprocessable_entity
+
+    data = JSON.parse(response.body)
+    assert_includes data["error"], "restricted"
+    assert_includes data["error"], "users"
+  end
+
+  test "execute blocks excluded tables in JOINs" do
+    QueryLens.configure { |c| c.excluded_tables = %w[users] }
+
+    post query_lens.execute_path,
+      params: { sql: "SELECT a.id FROM accounts a JOIN users u ON u.id = a.user_id" },
+      as: :json
+    assert_response :unprocessable_entity
+
+    data = JSON.parse(response.body)
+    assert_includes data["error"], "users"
+  end
+
+  test "execute allows queries when excluded tables are not referenced" do
+    QueryLens.configure { |c| c.excluded_tables = %w[api_keys secrets] }
+
+    post query_lens.execute_path, params: { sql: "SELECT * FROM users" }, as: :json
+    assert_response :success
+  end
+
+  # ── Info endpoint ──
+
+  test "info returns excluded tables and config" do
+    QueryLens.configure do |c|
+      c.excluded_tables = %w[api_keys secrets]
+      c.max_rows = 500
+      c.query_timeout = 15
+    end
+
+    get query_lens.info_path, as: :json
+    assert_response :success
+
+    data = JSON.parse(response.body)
+    assert_equal %w[api_keys secrets], data["excluded_tables"]
+    assert_equal 500, data["max_rows"]
+    assert_equal 15, data["query_timeout"]
+  end
+
+  test "info returns empty excluded tables when none configured" do
+    get query_lens.info_path, as: :json
+    assert_response :success
+
+    data = JSON.parse(response.body)
+    assert_equal [], data["excluded_tables"]
+  end
+
+  # ── Audit logging ──
+
+  test "audit logger is called on successful query execution" do
+    audit_entries = []
+    QueryLens.configure do |c|
+      c.audit_logger = ->(entry) { audit_entries << entry }
+    end
+
+    post query_lens.execute_path, params: { sql: "SELECT * FROM users" }, as: :json
+    assert_response :success
+
+    assert_equal 1, audit_entries.length
+    assert_equal "execute", audit_entries[0][:action]
+    assert_equal "SELECT * FROM users", audit_entries[0][:sql]
+    assert_equal 2, audit_entries[0][:row_count]
+    assert_nil audit_entries[0][:error]
+    assert audit_entries[0][:timestamp].present?
+    assert audit_entries[0][:ip].present?
+  end
+
+  test "audit logger is called on blocked queries" do
+    audit_entries = []
+    QueryLens.configure do |c|
+      c.audit_logger = ->(entry) { audit_entries << entry }
+    end
+
+    post query_lens.execute_path, params: { sql: "DELETE FROM users" }, as: :json
+    assert_response :unprocessable_entity
+
+    assert_equal 1, audit_entries.length
+    assert_equal "execute_blocked", audit_entries[0][:action]
+  end
+
+  test "audit logger is called when excluded table is blocked" do
+    audit_entries = []
+    QueryLens.configure do |c|
+      c.excluded_tables = %w[users]
+      c.audit_logger = ->(entry) { audit_entries << entry }
+    end
+
+    post query_lens.execute_path, params: { sql: "SELECT * FROM users" }, as: :json
+    assert_response :unprocessable_entity
+
+    assert_equal 1, audit_entries.length
+    assert_equal "execute_blocked", audit_entries[0][:action]
+    assert_includes audit_entries[0][:error], "Restricted table"
+  end
+
+  test "audit logger failure does not break query execution" do
+    QueryLens.configure do |c|
+      c.audit_logger = ->(entry) { raise "Audit DB down!" }
+    end
+
+    post query_lens.execute_path, params: { sql: "SELECT * FROM users" }, as: :json
+    assert_response :success
+  end
 end

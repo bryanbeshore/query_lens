@@ -246,6 +246,31 @@
       gap: 10px; padding: 40px; color: #71717a; font-size: 13px;
     }
 
+    /* ── Restricted Tables Banner ── */
+    .ql-restricted-banner {
+      border-bottom: 1px solid #27272a;
+    }
+    .ql-restricted-toggle {
+      display: flex; align-items: center; gap: 8px; width: 100%;
+      padding: 10px 20px; background: rgba(234,179,8,0.05); border: none;
+      color: #a1a1aa; font-size: 12px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .ql-restricted-toggle:hover { background: rgba(234,179,8,0.1); }
+    .ql-restricted-toggle svg { width: 14px; height: 14px; color: #ca8a04; flex-shrink: 0; }
+    .ql-restricted-chevron {
+      margin-left: auto; transition: transform 0.2s;
+    }
+    .ql-restricted-chevron.ql-open { transform: rotate(180deg); }
+    .ql-restricted-list {
+      padding: 8px 20px 12px; display: flex; flex-wrap: wrap; gap: 6px;
+    }
+    .ql-restricted-tag {
+      display: inline-block; padding: 3px 10px; border-radius: 6px;
+      background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.2);
+      color: #ca8a04; font-size: 11px; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    }
+
     /* ── Animations ── */
     @keyframes ql-spin { to { transform: rotate(360deg); } }
     @keyframes ql-fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }

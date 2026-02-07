@@ -117,9 +117,62 @@ QueryLens enforces multiple layers of safety:
 6. **Query timeout**: Configurable per-query timeout enforced at the database level
 7. **Row limits**: Configurable max rows (default 1000)
 8. **Authentication**: Configurable auth lambda to restrict access
-9. **Schema filtering**: Exclude sensitive tables from AI context via `excluded_tables`
+9. **Table enforcement**: `excluded_tables` blocks both AI context and query execution — queries referencing restricted tables are rejected with a clear error
+10. **Audit logging**: Configurable logging of all query executions, blocked attempts, and AI generations
 
 **Important**: Always restrict access to QueryLens in production using the `authentication` config option. Even with read-only enforcement, database access should be limited to authorized users.
+
+### Excluded Tables
+
+Tables listed in `excluded_tables` are enforced at two levels:
+- **AI context**: The AI never sees these tables, so it won't suggest queries against them
+- **Execution**: Even if a user manually types a query referencing a restricted table, it's blocked with a clear error
+
+Restricted tables are shown in a collapsible banner in the UI so admins know which tables are off-limits.
+
+```ruby
+QueryLens.configure do |config|
+  config.excluded_tables = %w[api_keys admin_users payment_methods ssn_records]
+end
+```
+
+### Audit Logging
+
+Every query execution, blocked attempt, and AI generation can be logged. The audit logger receives a hash with `:user`, `:action`, `:sql`, `:row_count`, `:error`, `:timestamp`, and `:ip`.
+
+```ruby
+QueryLens.configure do |config|
+  # Simple: log to Rails logger
+  config.audit_logger = ->(entry) {
+    Rails.logger.info("[QueryLens] #{entry[:action]} by #{entry[:user]} — #{entry[:sql]}")
+  }
+
+  # Production: log to a database table
+  config.audit_logger = ->(entry) {
+    QueryAuditLog.create!(
+      user_identifier: entry[:user],
+      action: entry[:action],
+      sql_query: entry[:sql],
+      row_count: entry[:row_count],
+      error_message: entry[:error],
+      ip_address: entry[:ip]
+    )
+  }
+
+  # The method called on the controller to identify the user (default: :current_user)
+  # For Active Admin: :current_admin_user
+  config.current_user_method = :current_admin_user
+end
+```
+
+Actions logged:
+- `execute` — successful query execution (includes SQL and row count)
+- `execute_blocked` — query rejected by safety checks (includes reason)
+- `execute_error` — query failed at database level (includes error message)
+- `generate` — AI generated SQL
+- `generate_error` — AI generation failed
+
+Audit logging is fail-safe: if your logger raises an error, the query still executes normally and the failure is logged to `Rails.logger.error`.
 
 ### Read-Only Connection (Recommended for Production)
 
