@@ -53,9 +53,43 @@ class QueryLens::QueriesControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
   end
 
-  test "execute rejects SELECT with embedded DELETE" do
-    post query_lens.execute_path, params: { sql: "SELECT 1; DELETE FROM users" }, as: :json
+  test "execute rejects multi-statement queries with semicolons" do
+    post query_lens.execute_path, params: { sql: "SELECT 1; SELECT 2" }, as: :json
     assert_response :unprocessable_entity
+
+    data = JSON.parse(response.body)
+    assert_equal "Multiple statements are not allowed", data["error"]
+  end
+
+  test "execute rejects TRUNCATE statements" do
+    post query_lens.execute_path, params: { sql: "TRUNCATE users" }, as: :json
+    assert_response :unprocessable_entity
+  end
+
+  test "execute rejects EXECUTE statements" do
+    post query_lens.execute_path, params: { sql: "SELECT 1 WHERE EXECUTE something" }, as: :json
+    assert_response :unprocessable_entity
+  end
+
+  test "execute rejects pg_sleep" do
+    post query_lens.execute_path, params: { sql: "SELECT pg_sleep(3600)" }, as: :json
+    assert_response :unprocessable_entity
+
+    data = JSON.parse(response.body)
+    assert_equal "This function is not allowed", data["error"]
+  end
+
+  test "execute rejects pg_terminate_backend" do
+    post query_lens.execute_path, params: { sql: "SELECT pg_terminate_backend(1234)" }, as: :json
+    assert_response :unprocessable_entity
+  end
+
+  test "execute allows WITH (CTE) queries" do
+    post query_lens.execute_path, params: { sql: "WITH counts AS (SELECT COUNT(*) AS c FROM users) SELECT c FROM counts" }, as: :json
+    assert_response :success
+
+    data = JSON.parse(response.body)
+    assert_equal 1, data["row_count"]
   end
 
   test "execute handles SQL errors gracefully" do
