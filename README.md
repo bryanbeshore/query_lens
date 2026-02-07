@@ -274,7 +274,24 @@ end
 
 ## Try It Out
 
-The [QueryLens Testbed](https://github.com/bryanbeshore/query_lens_testbed) is a standalone Rails app with seed data you can use to try QueryLens locally without integrating it into your own project first.
+Want to see QueryLens in action before integrating it into your own app? The [QueryLens Testbed](https://github.com/bryanbeshore/query_lens_testbed) is a standalone Rails app with a realistic SaaS dataset — users, teams, posts, comments, tags, and invoices (~1,450 records) — ready to query.
+
+```bash
+git clone https://github.com/bryanbeshore/query_lens_testbed.git
+git clone https://github.com/bryanbeshore/query_lens.git
+cd query_lens_testbed
+bundle install
+bin/rails db:prepare
+```
+
+Start the server with your API key (any [RubyLLM-supported provider](https://rubyllm.com) works):
+
+```bash
+ANTHROPIC_API_KEY=sk-ant-your-key bin/dev
+# or: OPENAI_API_KEY=sk-your-key bin/dev
+```
+
+Then visit [localhost:3000/query_lens](http://localhost:3000/query_lens) and start asking questions.
 
 ## Development
 
