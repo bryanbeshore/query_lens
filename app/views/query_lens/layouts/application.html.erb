@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QueryLens</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .ql-spinner {
+      border: 2px solid #e5e7eb;
+      border-top: 2px solid #6366f1;
+      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .ql-sql-editor {
+      font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+      tab-size: 2;
+      resize: vertical;
+    }
+    .ql-results-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+  </style>
+  <%= csrf_meta_tags %>
+</head>
+<body class="bg-gray-50 h-screen flex flex-col">
+  <%= yield %>
+</body>
+</html>
