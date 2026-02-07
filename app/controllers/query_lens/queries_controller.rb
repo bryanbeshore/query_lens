@@ -53,6 +53,8 @@ module QueryLens
       timeout = QueryLens.configuration.query_timeout
 
       begin
+        started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
         # Layer 6: Database-level read-only enforcement + timeout
         if postgresql
           connection.execute("BEGIN")
@@ -68,6 +70,8 @@ module QueryLens
           connection.execute("ROLLBACK")
         end
 
+        elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at) * 1000).round
+
         max_rows = QueryLens.configuration.max_rows
         truncated = rows.length > max_rows
         rows = rows.first(max_rows) if truncated
@@ -78,7 +82,8 @@ module QueryLens
           columns: columns,
           rows: rows,
           row_count: rows.length,
-          truncated: truncated
+          truncated: truncated,
+          execution_ms: elapsed_ms
         }
       rescue => e
         connection.execute("ROLLBACK") if postgresql rescue nil

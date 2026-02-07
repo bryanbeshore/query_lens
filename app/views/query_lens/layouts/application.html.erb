@@ -246,6 +246,55 @@
       gap: 10px; padding: 40px; color: #71717a; font-size: 13px;
     }
 
+    /* ── Activity Trace ── */
+    .ql-trace {
+      margin: 4px 0 4px 40px; padding: 0;
+      animation: ql-fadeIn 0.25s ease-out;
+    }
+    .ql-trace-inner {
+      background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.12);
+      border-radius: 10px; padding: 10px 14px; font-size: 12px;
+    }
+    .ql-trace-header {
+      display: flex; align-items: center; gap: 6px;
+      color: #71717a; font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+    .ql-trace-header svg { width: 12px; height: 12px; color: #6366f1; }
+    .ql-trace-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 3px 0; color: #a1a1aa; font-size: 12px; line-height: 1.4;
+    }
+    .ql-trace-time {
+      color: #52525b; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 11px; flex-shrink: 0; min-width: 62px;
+    }
+    .ql-trace-dot {
+      width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+      margin-top: 5px;
+    }
+    .ql-trace-dot-blue { background: #6366f1; }
+    .ql-trace-dot-green { background: #059669; }
+    .ql-trace-dot-amber { background: #d97706; }
+    .ql-trace-dot-red { background: #ef4444; }
+    .ql-trace-label { color: #a1a1aa; }
+    .ql-trace-label strong { color: #d4d4d8; font-weight: 500; }
+    .ql-trace-tables {
+      display: inline-flex; flex-wrap: wrap; gap: 4px; margin-top: 2px;
+    }
+    .ql-trace-table-tag {
+      display: inline-block; padding: 1px 6px; border-radius: 4px;
+      background: rgba(99,102,241,0.1); color: #818cf8;
+      font-size: 10px; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    }
+
+    /* ── Message timestamps ── */
+    .ql-msg-time {
+      font-size: 10px; color: #52525b; margin-top: 4px;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    }
+
     /* ── Restricted Tables Banner ── */
     .ql-restricted-banner {
       border-bottom: 1px solid #27272a;

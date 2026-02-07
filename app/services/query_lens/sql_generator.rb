@@ -45,7 +45,12 @@ module QueryLens
       if @schema.length > threshold
         generate_two_stage(messages)
       else
-        generate_single_stage(messages, SchemaIntrospector.new.format_schema(@schema))
+        result = generate_single_stage(messages, SchemaIntrospector.new.format_schema(@schema))
+        result.merge(
+          strategy: "single_stage",
+          total_tables: @schema.length,
+          tables_used: @schema.length
+        )
       end
     end
 
@@ -98,12 +103,24 @@ module QueryLens
 
       # Fallback: if selection returned nothing usable, send full schema
       if relevant_tables.empty?
-        return generate_single_stage(messages, SchemaIntrospector.new.format_schema(@schema))
+        result = generate_single_stage(messages, SchemaIntrospector.new.format_schema(@schema))
+        return result.merge(
+          strategy: "two_stage_fallback",
+          total_tables: @schema.length,
+          tables_used: @schema.length,
+          tables_selected: all_table_names
+        )
       end
 
       # Stage 2: Generate SQL with full schema of selected tables only
       filtered_prompt = SchemaIntrospector.prompt_for_tables(@schema, relevant_tables)
-      generate_single_stage(messages, filtered_prompt)
+      result = generate_single_stage(messages, filtered_prompt)
+      result.merge(
+        strategy: "two_stage",
+        total_tables: @schema.length,
+        tables_used: relevant_tables.length,
+        tables_selected: relevant_tables
+      )
     end
 
     def normalize_messages(messages)

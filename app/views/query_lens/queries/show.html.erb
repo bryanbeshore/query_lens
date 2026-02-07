@@ -165,29 +165,67 @@
     if (!q) return;
 
     el.input.value = '';
-    addMessage('user', q);
+    const askTime = new Date();
+    addMessage('user', q, askTime);
     conversation.push({ role: 'user', content: q });
     setLoading(true);
 
+    const trace = [];
+    trace.push({ time: askTime, dot: 'blue', label: 'Question received' });
+
     try {
       const data = await post(generateUrl, { messages: conversation });
+      const genTime = new Date();
 
-      if (data.error) { addMessage('error', data.error); return; }
-      if (data.explanation) addMessage('ai', data.explanation);
+      if (data.error) {
+        trace.push({ time: genTime, dot: 'red', label: 'Error: ' + data.error });
+        addMessage('error', data.error);
+        addTrace(trace);
+        return;
+      }
+
+      // Build generation trace entry
+      let genLabel = 'SQL generated';
+      if (data.generation_ms) genLabel += ' <strong>(' + formatMs(data.generation_ms) + ')</strong>';
+      trace.push({ time: genTime, dot: 'blue', label: genLabel });
+
+      // Schema strategy trace
+      if (data.strategy === 'two_stage') {
+        let schemaLabel = 'Schema: <strong>' + data.tables_used + '</strong> tables selected from ' + data.total_tables;
+        trace.push({ time: genTime, dot: 'amber', label: schemaLabel, tables: data.tables_selected });
+      } else if (data.total_tables) {
+        trace.push({ time: genTime, dot: 'amber', label: 'Schema: <strong>' + data.total_tables + '</strong> tables (full schema)' });
+      }
+
+      if (data.explanation) addMessage('ai', data.explanation, genTime);
       if (data.sql) {
         el.sql.value = data.sql;
         conversation.push({ role: 'assistant', content: data.raw || data.explanation });
-        runQuery();
+        await runQueryWithTrace(trace);
+      } else {
+        addTrace(trace);
       }
     } catch (err) {
+      trace.push({ time: new Date(), dot: 'red', label: 'Error: ' + err.message });
       addMessage('error', 'Failed to generate SQL: ' + err.message);
+      addTrace(trace);
     } finally {
       setLoading(false);
     }
   }
 
-  // ── Run Query ──
+  // ── Run Query (standalone, e.g. manual run button) ──
   async function runQuery() {
+    const sql = el.sql.value.trim();
+    if (!sql) return;
+
+    const trace = [];
+    trace.push({ time: new Date(), dot: 'blue', label: 'Manual query execution' });
+    await runQueryWithTrace(trace);
+  }
+
+  // ── Run Query with trace ──
+  async function runQueryWithTrace(trace) {
     const sql = el.sql.value.trim();
     if (!sql) return;
 
@@ -197,19 +235,34 @@
 
     try {
       const data = await post(executeUrl, { sql });
+      const execTime = new Date();
 
       if (data.error) {
+        trace.push({ time: execTime, dot: 'red', label: 'Query blocked: ' + esc(data.error) });
         el.results.innerHTML = '<div class="ql-error-box">' + esc(data.error) + '</div>';
+        addTrace(trace);
         return;
       }
+
+      let execLabel = 'Query executed';
+      if (data.execution_ms) execLabel += ' <strong>(' + formatMs(data.execution_ms) + ')</strong>';
+      trace.push({ time: execTime, dot: 'green', label: execLabel });
+
+      let resultLabel = '<strong>' + data.row_count + '</strong> row' + (data.row_count === 1 ? '' : 's') + ' returned';
+      if (data.truncated) resultLabel += ' (truncated)';
+      trace.push({ time: execTime, dot: 'green', label: resultLabel });
 
       renderResults(data);
 
       const summary = 'Query returned ' + data.row_count + ' row(s). Columns: ' + data.columns.join(', ') + '. First rows: ' + JSON.stringify(data.rows.slice(0, 5));
       const last = conversation[conversation.length - 1];
       if (last && last.role === 'assistant') last.content += '\n\nResult: ' + summary;
+
+      addTrace(trace);
     } catch (err) {
+      trace.push({ time: new Date(), dot: 'red', label: 'Error: ' + esc(err.message) });
       el.results.innerHTML = '<div class="ql-error-box">Failed to execute: ' + esc(err.message) + '</div>';
+      addTrace(trace);
     } finally {
       setRunning(false);
     }
@@ -245,7 +298,7 @@
   }
 
   // ── Messages ──
-  function addMessage(role, content) {
+  function addMessage(role, content, timestamp) {
     if (el.emptyState) { el.emptyState.remove(); }
 
     const wrap = document.createElement('div');
@@ -253,14 +306,49 @@
     wrap.className = 'ql-msg ' + cls;
 
     const avatarLabel = role === 'user' ? 'You' : role === 'error' ? '!' : 'AI';
+    const timeStr = timestamp ? formatTime(timestamp) : '';
     wrap.innerHTML =
       '<div class="ql-msg-avatar">' + avatarLabel + '</div>' +
-      '<div class="ql-msg-bubble">' + esc(content) + '</div>';
+      '<div><div class="ql-msg-bubble">' + esc(content) + '</div>' +
+      (timeStr ? '<div class="ql-msg-time">' + timeStr + '</div>' : '') +
+      '</div>';
 
     // Remove typing indicator if present
     const typing = el.messages.querySelector('.ql-msg-typing');
     if (typing) typing.remove();
 
+    el.messages.appendChild(wrap);
+    el.messages.scrollTop = el.messages.scrollHeight;
+  }
+
+  // ── Activity Trace ──
+  function addTrace(steps) {
+    if (!steps.length) return;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'ql-trace';
+
+    let html = '<div class="ql-trace-inner">';
+    html += '<div class="ql-trace-header">';
+    html += '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
+    html += 'Activity trace</div>';
+
+    steps.forEach(step => {
+      html += '<div class="ql-trace-row">';
+      html += '<span class="ql-trace-time">' + formatTime(step.time) + '</span>';
+      html += '<span class="ql-trace-dot ql-trace-dot-' + step.dot + '"></span>';
+      html += '<span class="ql-trace-label">' + step.label + '</span>';
+      html += '</div>';
+      if (step.tables && step.tables.length) {
+        html += '<div class="ql-trace-row"><span class="ql-trace-time"></span><span class="ql-trace-dot" style="visibility:hidden"></span>';
+        html += '<span class="ql-trace-tables">';
+        step.tables.forEach(t => { html += '<span class="ql-trace-table-tag">' + esc(t) + '</span>'; });
+        html += '</span></div>';
+      }
+    });
+
+    html += '</div>';
+    wrap.innerHTML = html;
     el.messages.appendChild(wrap);
     el.messages.scrollTop = el.messages.scrollHeight;
   }
@@ -302,6 +390,15 @@
       body: JSON.stringify(body)
     });
     return res.json();
+  }
+
+  function formatTime(date) {
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+  }
+
+  function formatMs(ms) {
+    if (ms < 1000) return ms + 'ms';
+    return (ms / 1000).toFixed(1) + 's';
   }
 
   function esc(s) {
