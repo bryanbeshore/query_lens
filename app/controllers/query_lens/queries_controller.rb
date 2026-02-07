@@ -12,7 +12,7 @@ module QueryLens
     end
 
     def execute
-      sql = params[:sql].to_s.strip
+      sql = params[:sql].to_s.strip.chomp(";").strip
 
       # Layer 1: Must start with SELECT or WITH (for CTEs)
       unless sql.match?(/\A\s*(\(?\s*SELECT|WITH\s)/i)

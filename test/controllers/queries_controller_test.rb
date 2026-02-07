@@ -84,6 +84,14 @@ class QueryLens::QueriesControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
   end
 
+  test "execute allows trailing semicolon" do
+    post query_lens.execute_path, params: { sql: "SELECT name FROM users ORDER BY name;" }, as: :json
+    assert_response :success
+
+    data = JSON.parse(response.body)
+    assert_equal 2, data["row_count"]
+  end
+
   test "execute allows WITH (CTE) queries" do
     post query_lens.execute_path, params: { sql: "WITH counts AS (SELECT COUNT(*) AS c FROM users) SELECT c FROM counts" }, as: :json
     assert_response :success
