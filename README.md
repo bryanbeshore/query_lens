@@ -133,6 +133,44 @@ QueryLens.configure do |config|
 end
 ```
 
+## Mounting with Active Admin
+
+If you use [Active Admin](https://activeadmin.info), you can mount QueryLens under your admin path and reuse Active Admin's authentication:
+
+```ruby
+# config/routes.rb
+Rails.application.routes.draw do
+  devise_for :admin_users, ActiveAdmin::Devise.config
+  ActiveAdmin.routes(self)
+
+  # Mount QueryLens under /admin/query_lens
+  mount QueryLens::Engine, at: "/admin/query_lens"
+
+  # ...
+end
+```
+
+Then configure QueryLens to require an authenticated admin user:
+
+```ruby
+# config/initializers/query_lens.rb
+QueryLens.configure do |config|
+  config.authentication = ->(controller) {
+    # Warden is available because Devise is middleware
+    controller.request.env["warden"].authenticated?(:admin_user)
+  }
+end
+```
+
+QueryLens will be available at `/admin/query_lens`. Unauthenticated requests get a 401. Active Admin's navigation won't show a link automatically — you can add one with a custom menu item:
+
+```ruby
+# app/admin/query_lens.rb
+ActiveAdmin.register_page "QueryLens" do
+  menu label: "QueryLens", url: "/admin/query_lens", priority: 99
+end
+```
+
 ## Requirements
 
 - Rails 7.1+
