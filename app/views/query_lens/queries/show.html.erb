@@ -33,13 +33,9 @@
         </div>
         <div class="ql-sidebar-section-content" id="ql-saved-section-content">
           <div class="ql-sidebar-actions">
-            <button class="ql-sidebar-action-btn" id="ql-save-query-btn" type="button">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-              Save
-            </button>
             <button class="ql-sidebar-action-btn" id="ql-add-project-btn" type="button">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
-              Project
+              New Project
             </button>
           </div>
           <div class="ql-saved-list" id="ql-saved-list"></div>
@@ -107,11 +103,17 @@
       <div class="ql-editor-section">
         <div class="ql-editor-toolbar">
           <div class="ql-editor-title">SQL Editor</div>
-          <button class="ql-run-btn" id="ql-run-btn">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-            Run
-            <span class="ql-run-shortcut">&hairsp;&#8984;&#9166;&hairsp;</span>
-          </button>
+          <div class="ql-editor-actions">
+            <button class="ql-save-btn" id="ql-save-query-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              Save
+            </button>
+            <button class="ql-run-btn" id="ql-run-btn">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              Run
+              <span class="ql-run-shortcut">&hairsp;&#8984;&#9166;&hairsp;</span>
+            </button>
+          </div>
         </div>
         <div class="ql-editor-wrap">
           <textarea class="ql-sql-textarea" id="ql-sql" placeholder="-- Your SQL query will appear here..." spellcheck="false"></textarea>
@@ -639,7 +641,7 @@
     }
 
     if (savedData.projects.length === 0 && savedData.unorganized.length === 0) {
-      html = '<div class="ql-saved-empty">No saved queries yet. Run a query and click "Save Query" to get started.</div>';
+      html = '<div class="ql-saved-empty">No saved queries yet</div>';
     }
 
     el.savedList.innerHTML = html;
