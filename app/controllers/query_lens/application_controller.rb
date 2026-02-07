@@ -1,6 +1,7 @@
 module QueryLens
   class ApplicationController < ActionController::Base
     protect_from_forgery with: :null_session
+    layout "query_lens/layouts/application"
     before_action :authenticate!
 
     private

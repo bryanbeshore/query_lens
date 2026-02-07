@@ -1,96 +1,82 @@
 <div id="query-lens-app"
-     data-controller="query-lens"
-     data-query-lens-execute-url="<%= query_lens.execute_path %>"
-     data-query-lens-generate-url="<%= query_lens.generate_path %>"
-     class="flex flex-col h-screen">
+     data-execute-url="<%= query_lens.execute_path %>"
+     data-generate-url="<%= query_lens.generate_path %>"
+     class="ql-app">
 
   <!-- Header -->
-  <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0">
-    <div class="flex items-center gap-3">
-      <h1 class="text-lg font-semibold text-gray-900">QueryLens</h1>
-      <span class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">AI-powered SQL</span>
+  <header class="ql-header">
+    <div class="ql-header-left">
+      <h1 class="ql-logo">
+        <span class="ql-logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+          </svg>
+        </span>QueryLens
+      </h1>
+      <span class="ql-badge">AI-powered SQL</span>
     </div>
-    <div class="flex items-center gap-2 text-sm text-gray-500">
-      <span data-query-lens-target="status"></span>
-    </div>
+    <div class="ql-status" id="ql-status"></div>
   </header>
 
-  <!-- Main Content -->
-  <div class="flex flex-1 min-h-0">
+  <!-- Main -->
+  <div class="ql-main">
 
-    <!-- Left Panel: Conversation -->
-    <div class="w-1/2 border-r border-gray-200 flex flex-col bg-white">
-      <div class="px-4 py-3 border-b border-gray-100">
-        <h2 class="text-sm font-medium text-gray-700">Conversation</h2>
-      </div>
-
-      <!-- Messages -->
-      <div data-query-lens-target="messages" class="flex-1 overflow-y-auto p-4 space-y-4">
-        <div class="text-center text-sm text-gray-400 py-8">
-          Ask a question about your data to get started.
+    <!-- Chat Panel -->
+    <div class="ql-chat">
+      <div class="ql-chat-header">Conversation</div>
+      <div class="ql-messages" id="ql-messages">
+        <div class="ql-empty-state" id="ql-empty-state">
+          <div class="ql-empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+            </svg>
+          </div>
+          <div class="ql-empty-title">Ask about your data</div>
+          <div class="ql-empty-text">
+            Try something like:<br>
+            "How many users signed up this month?"<br>
+            "What's the total revenue by plan?"
+          </div>
         </div>
       </div>
-
-      <!-- Input -->
-      <div class="border-t border-gray-200 p-4">
-        <form data-action="submit->query-lens#ask" class="flex gap-2">
-          <input
-            type="text"
-            data-query-lens-target="input"
-            placeholder="Ask about your data..."
-            class="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            autocomplete="off"
-          >
-          <button
-            type="submit"
-            data-query-lens-target="askButton"
-            class="bg-indigo-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Ask
-          </button>
+      <div class="ql-input-area">
+        <form class="ql-input-form" id="ql-form">
+          <input type="text" id="ql-input" placeholder="Ask a question about your data..." autocomplete="off">
+          <button type="submit" id="ql-ask-btn">Ask</button>
         </form>
       </div>
     </div>
 
-    <!-- Right Panel: SQL Editor + Results -->
-    <div class="w-1/2 flex flex-col bg-white">
+    <!-- Workspace -->
+    <div class="ql-workspace">
 
       <!-- SQL Editor -->
-      <div class="flex flex-col flex-shrink-0" style="height: 40%;">
-        <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-          <h2 class="text-sm font-medium text-gray-700">SQL Editor</h2>
-          <button
-            data-action="click->query-lens#runQuery"
-            data-query-lens-target="runButton"
-            class="bg-emerald-600 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
-          >
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-            Run Query
+      <div class="ql-editor-section">
+        <div class="ql-editor-toolbar">
+          <div class="ql-editor-title">SQL Editor</div>
+          <button class="ql-run-btn" id="ql-run-btn">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            Run
+            <span class="ql-run-shortcut">&hairsp;&#8984;&#9166;&hairsp;</span>
           </button>
         </div>
-        <div class="flex-1 p-4 min-h-0">
-          <textarea
-            data-query-lens-target="sqlEditor"
-            data-action="keydown.ctrl+enter->query-lens#runQuery keydown.meta+enter->query-lens#runQuery"
-            class="ql-sql-editor w-full h-full bg-gray-900 text-green-400 rounded-lg p-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            placeholder="SQL will appear here..."
-            spellcheck="false"
-          ></textarea>
+        <div class="ql-editor-wrap">
+          <textarea class="ql-sql-textarea" id="ql-sql" placeholder="-- Your SQL query will appear here..." spellcheck="false"></textarea>
         </div>
       </div>
 
       <!-- Results -->
-      <div class="flex-1 flex flex-col border-t border-gray-200 min-h-0">
-        <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-          <h2 class="text-sm font-medium text-gray-700">Results</h2>
-          <span data-query-lens-target="rowCount" class="text-xs text-gray-400"></span>
+      <div class="ql-results-section">
+        <div class="ql-results-toolbar">
+          <div class="ql-results-title">Results</div>
+          <div class="ql-row-count" id="ql-row-count"></div>
         </div>
-        <div data-query-lens-target="results" class="flex-1 overflow-auto p-4">
-          <div class="text-center text-sm text-gray-400 py-8">
-            Run a query to see results.
+        <div class="ql-results-body" id="ql-results">
+          <div class="ql-results-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0 1 12 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125M13.125 12h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125M20.625 12c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5M12 14.625v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 14.625c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m0 0v.375"/>
+            </svg>
+            <span>Run a query to see results</span>
           </div>
         </div>
       </div>
@@ -100,254 +86,188 @@
 
 <script>
 (() => {
-  const application = window.Stimulus || (function() {
-    // Minimal Stimulus-like controller system for standalone use
-    class Application {
-      constructor() { this.controllers = {}; }
-      register(name, controllerClass) { this.controllers[name] = controllerClass; }
-      start() {
-        document.querySelectorAll('[data-controller]').forEach(el => {
-          const name = el.dataset.controller;
-          const Ctrl = this.controllers[name];
-          if (Ctrl) {
-            const instance = new Ctrl(el);
-            instance.connect();
-          }
-        });
-      }
+  const app = document.getElementById('query-lens-app');
+  const executeUrl = app.dataset.executeUrl;
+  const generateUrl = app.dataset.generateUrl;
+
+  const el = {
+    messages:  document.getElementById('ql-messages'),
+    emptyState: document.getElementById('ql-empty-state'),
+    input:     document.getElementById('ql-input'),
+    form:      document.getElementById('ql-form'),
+    askBtn:    document.getElementById('ql-ask-btn'),
+    sql:       document.getElementById('ql-sql'),
+    runBtn:    document.getElementById('ql-run-btn'),
+    results:   document.getElementById('ql-results'),
+    rowCount:  document.getElementById('ql-row-count'),
+    status:    document.getElementById('ql-status'),
+  };
+
+  let conversation = [];
+
+  // ── Events ──
+  el.form.addEventListener('submit', (e) => { e.preventDefault(); ask(); });
+  el.runBtn.addEventListener('click', () => runQuery());
+  el.sql.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); runQuery(); }
+    // Tab inserts spaces
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const s = el.sql.selectionStart;
+      el.sql.value = el.sql.value.substring(0, s) + '  ' + el.sql.value.substring(el.sql.selectionEnd);
+      el.sql.selectionStart = el.sql.selectionEnd = s + 2;
     }
-    return new Application();
-  })();
+  });
 
-  class QueryLensController {
-    constructor(element) {
-      this.element = element;
-      this.conversation = [];
-      this.targets = {};
-      const targetEls = element.querySelectorAll('[data-query-lens-target]');
-      targetEls.forEach(el => {
-        const name = el.dataset.queryLensTarget;
-        this.targets[name] = el;
-      });
+  // ── Ask ──
+  async function ask() {
+    const q = el.input.value.trim();
+    if (!q) return;
+
+    el.input.value = '';
+    addMessage('user', q);
+    conversation.push({ role: 'user', content: q });
+    setLoading(true);
+
+    try {
+      const data = await post(generateUrl, { messages: conversation });
+
+      if (data.error) { addMessage('error', data.error); return; }
+      if (data.explanation) addMessage('ai', data.explanation);
+      if (data.sql) {
+        el.sql.value = data.sql;
+        conversation.push({ role: 'assistant', content: data.raw || data.explanation });
+        runQuery();
+      }
+    } catch (err) {
+      addMessage('error', 'Failed to generate SQL: ' + err.message);
+    } finally {
+      setLoading(false);
     }
+  }
 
-    get executeUrl() { return this.element.dataset.queryLensExecuteUrl; }
-    get generateUrl() { return this.element.dataset.queryLensGenerateUrl; }
+  // ── Run Query ──
+  async function runQuery() {
+    const sql = el.sql.value.trim();
+    if (!sql) return;
 
-    connect() {
-      // Bind form submit
-      const form = this.element.querySelector('form');
-      if (form) {
-        form.addEventListener('submit', (e) => { e.preventDefault(); this.ask(); });
-      }
+    setRunning(true);
+    el.results.innerHTML = '<div class="ql-loading-row"><div class="ql-spinner"></div>Running query...</div>';
+    el.rowCount.textContent = '';
 
-      // Bind run button
-      const runBtn = this.targets.runButton;
-      if (runBtn) {
-        runBtn.addEventListener('click', () => this.runQuery());
-      }
+    try {
+      const data = await post(executeUrl, { sql });
 
-      // Bind Ctrl+Enter / Cmd+Enter on textarea
-      const editor = this.targets.sqlEditor;
-      if (editor) {
-        editor.addEventListener('keydown', (e) => {
-          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-            e.preventDefault();
-            this.runQuery();
-          }
-        });
-      }
-    }
-
-    async ask() {
-      const input = this.targets.input;
-      const question = input.value.trim();
-      if (!question) return;
-
-      input.value = '';
-      this.addMessage('user', question);
-      this.conversation.push({ role: 'user', content: question });
-
-      this.setLoading(true);
-
-      try {
-        const token = document.querySelector('meta[name="csrf-token"]')?.content;
-        const response = await fetch(this.generateUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': token || ''
-          },
-          body: JSON.stringify({ messages: this.conversation })
-        });
-
-        const data = await response.json();
-
-        if (data.error) {
-          this.addMessage('error', data.error);
-          return;
-        }
-
-        if (data.explanation) {
-          this.addMessage('assistant', data.explanation);
-        }
-
-        if (data.sql) {
-          this.targets.sqlEditor.value = data.sql;
-          this.conversation.push({ role: 'assistant', content: data.raw || data.explanation });
-          // Auto-run the generated query
-          this.runQuery();
-        }
-      } catch (err) {
-        this.addMessage('error', 'Failed to generate SQL: ' + err.message);
-      } finally {
-        this.setLoading(false);
-      }
-    }
-
-    async runQuery() {
-      const sql = this.targets.sqlEditor.value.trim();
-      if (!sql) return;
-
-      this.setRunning(true);
-      this.targets.results.innerHTML = '<div class="flex items-center justify-center py-8 text-sm text-gray-500"><div class="ql-spinner mr-2"></div>Running query...</div>';
-
-      try {
-        const token = document.querySelector('meta[name="csrf-token"]')?.content;
-        const response = await fetch(this.executeUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': token || ''
-          },
-          body: JSON.stringify({ sql: sql })
-        });
-
-        const data = await response.json();
-
-        if (data.error) {
-          this.targets.results.innerHTML = `<div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">${this.escapeHtml(data.error)}</div>`;
-          this.targets.rowCount.textContent = '';
-          return;
-        }
-
-        this.renderResults(data);
-
-        // Add result summary to conversation context for follow-up questions
-        const summary = `Query returned ${data.row_count} row(s). Columns: ${data.columns.join(', ')}. First few rows: ${JSON.stringify(data.rows.slice(0, 5))}`;
-        if (this.conversation.length > 0 && this.conversation[this.conversation.length - 1].role === 'assistant') {
-          this.conversation[this.conversation.length - 1].content += '\n\nResult: ' + summary;
-        }
-      } catch (err) {
-        this.targets.results.innerHTML = `<div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">Failed to execute query: ${this.escapeHtml(err.message)}</div>`;
-        this.targets.rowCount.textContent = '';
-      } finally {
-        this.setRunning(false);
-      }
-    }
-
-    renderResults(data) {
-      if (!data.columns || data.columns.length === 0) {
-        this.targets.results.innerHTML = '<div class="text-center text-sm text-gray-400 py-8">No results.</div>';
-        this.targets.rowCount.textContent = '';
+      if (data.error) {
+        el.results.innerHTML = '<div class="ql-error-box">' + esc(data.error) + '</div>';
         return;
       }
 
-      const truncatedNote = data.truncated ? `<div class="text-xs text-amber-600 mb-2">Results truncated to ${data.row_count} rows.</div>` : '';
+      renderResults(data);
 
-      let html = truncatedNote + '<div class="overflow-auto rounded-lg border border-gray-200"><table class="ql-results-table min-w-full text-sm">';
-      html += '<thead class="bg-gray-50"><tr>';
-      data.columns.forEach(col => {
-        html += `<th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">${this.escapeHtml(col)}</th>`;
-      });
-      html += '</tr></thead><tbody class="divide-y divide-gray-100">';
-
-      data.rows.forEach((row, i) => {
-        const bgClass = i % 2 === 0 ? 'bg-white' : 'bg-gray-50';
-        html += `<tr class="${bgClass}">`;
-        row.forEach(cell => {
-          const val = cell === null ? '<span class="text-gray-300 italic">NULL</span>' : this.escapeHtml(String(cell));
-          html += `<td class="px-4 py-2 text-gray-700 whitespace-nowrap">${val}</td>`;
-        });
-        html += '</tr>';
-      });
-
-      html += '</tbody></table></div>';
-      this.targets.results.innerHTML = html;
-      this.targets.rowCount.textContent = `${data.row_count} row${data.row_count === 1 ? '' : 's'}${data.truncated ? ' (truncated)' : ''}`;
-    }
-
-    addMessage(role, content) {
-      const container = this.targets.messages;
-
-      // Remove empty state
-      const emptyState = container.querySelector('.text-center');
-      if (emptyState) emptyState.remove();
-
-      const div = document.createElement('div');
-
-      if (role === 'user') {
-        div.className = 'flex justify-end';
-        div.innerHTML = `<div class="bg-indigo-600 text-white rounded-2xl rounded-br-md px-4 py-2.5 max-w-[85%] text-sm">${this.escapeHtml(content)}</div>`;
-      } else if (role === 'assistant') {
-        div.className = 'flex justify-start';
-        div.innerHTML = `<div class="bg-gray-100 text-gray-800 rounded-2xl rounded-bl-md px-4 py-2.5 max-w-[85%] text-sm">${this.escapeHtml(content)}</div>`;
-      } else if (role === 'error') {
-        div.className = 'flex justify-start';
-        div.innerHTML = `<div class="bg-red-50 text-red-700 border border-red-200 rounded-2xl px-4 py-2.5 max-w-[85%] text-sm">${this.escapeHtml(content)}</div>`;
-      }
-
-      container.appendChild(div);
-      container.scrollTop = container.scrollHeight;
-    }
-
-    setLoading(loading) {
-      const btn = this.targets.askButton;
-      const input = this.targets.input;
-      const status = this.targets.status;
-
-      if (loading) {
-        btn.disabled = true;
-        input.disabled = true;
-        btn.innerHTML = '<div class="ql-spinner"></div>';
-        status.innerHTML = '<div class="flex items-center gap-1.5"><div class="ql-spinner"></div> Generating SQL...</div>';
-      } else {
-        btn.disabled = false;
-        input.disabled = false;
-        btn.textContent = 'Ask';
-        status.textContent = '';
-        input.focus();
-      }
-    }
-
-    setRunning(running) {
-      const btn = this.targets.runButton;
-      if (running) {
-        btn.disabled = true;
-      } else {
-        btn.disabled = false;
-      }
-    }
-
-    escapeHtml(str) {
-      const div = document.createElement('div');
-      div.textContent = str;
-      return div.innerHTML;
+      const summary = 'Query returned ' + data.row_count + ' row(s). Columns: ' + data.columns.join(', ') + '. First rows: ' + JSON.stringify(data.rows.slice(0, 5));
+      const last = conversation[conversation.length - 1];
+      if (last && last.role === 'assistant') last.content += '\n\nResult: ' + summary;
+    } catch (err) {
+      el.results.innerHTML = '<div class="ql-error-box">Failed to execute: ' + esc(err.message) + '</div>';
+    } finally {
+      setRunning(false);
     }
   }
 
-  // Auto-initialize when DOM is ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => init());
-  } else {
-    init();
-  }
+  // ── Render Results ──
+  function renderResults(data) {
+    if (!data.columns || !data.columns.length) {
+      el.results.innerHTML = '<div class="ql-results-empty"><span>Query returned no results</span></div>';
+      el.rowCount.textContent = '';
+      return;
+    }
 
-  function init() {
-    document.querySelectorAll('[data-controller="query-lens"]').forEach(el => {
-      const ctrl = new QueryLensController(el);
-      ctrl.connect();
+    let html = '';
+    if (data.truncated) html += '<div class="ql-truncated">Results truncated to ' + data.row_count + ' rows</div>';
+
+    html += '<table class="ql-table"><thead><tr>';
+    data.columns.forEach(c => { html += '<th>' + esc(c) + '</th>'; });
+    html += '</tr></thead><tbody>';
+
+    data.rows.forEach(row => {
+      html += '<tr>';
+      row.forEach(cell => {
+        if (cell === null) html += '<td><span class="ql-null">NULL</span></td>';
+        else html += '<td>' + esc(String(cell)) + '</td>';
+      });
+      html += '</tr>';
     });
+
+    html += '</tbody></table>';
+    el.results.innerHTML = html;
+    el.rowCount.textContent = data.row_count + ' row' + (data.row_count === 1 ? '' : 's') + (data.truncated ? ' (truncated)' : '');
+  }
+
+  // ── Messages ──
+  function addMessage(role, content) {
+    if (el.emptyState) { el.emptyState.remove(); }
+
+    const wrap = document.createElement('div');
+    const cls = role === 'user' ? 'ql-msg-user' : role === 'error' ? 'ql-msg-error' : 'ql-msg-ai';
+    wrap.className = 'ql-msg ' + cls;
+
+    const avatarLabel = role === 'user' ? 'You' : role === 'error' ? '!' : 'AI';
+    wrap.innerHTML =
+      '<div class="ql-msg-avatar">' + avatarLabel + '</div>' +
+      '<div class="ql-msg-bubble">' + esc(content) + '</div>';
+
+    // Remove typing indicator if present
+    const typing = el.messages.querySelector('.ql-msg-typing');
+    if (typing) typing.remove();
+
+    el.messages.appendChild(wrap);
+    el.messages.scrollTop = el.messages.scrollHeight;
+  }
+
+  function showTyping() {
+    if (el.emptyState) el.emptyState.remove();
+    const wrap = document.createElement('div');
+    wrap.className = 'ql-msg ql-msg-ai ql-msg-typing';
+    wrap.innerHTML =
+      '<div class="ql-msg-avatar">AI</div>' +
+      '<div class="ql-msg-bubble"><div class="ql-typing"><span></span><span></span><span></span></div></div>';
+    el.messages.appendChild(wrap);
+    el.messages.scrollTop = el.messages.scrollHeight;
+  }
+
+  // ── State ──
+  function setLoading(on) {
+    el.askBtn.disabled = on;
+    el.input.disabled = on;
+    if (on) {
+      el.askBtn.innerHTML = '<div class="ql-spinner ql-spinner-sm"></div>';
+      el.status.innerHTML = '<div class="ql-spinner ql-spinner-sm"></div>&nbsp;Generating SQL...';
+      showTyping();
+    } else {
+      el.askBtn.textContent = 'Ask';
+      el.status.textContent = '';
+      el.input.focus();
+    }
+  }
+
+  function setRunning(on) { el.runBtn.disabled = on; }
+
+  // ── Helpers ──
+  async function post(url, body) {
+    const token = document.querySelector('meta[name="csrf-token"]')?.content;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token || '' },
+      body: JSON.stringify(body)
+    });
+    return res.json();
+  }
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
   }
 })();
 </script>

@@ -4,34 +4,258 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>QueryLens</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <%= csrf_meta_tags %>
   <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #0f0f12;
+      color: #e4e4e7;
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+    button { cursor: pointer; font-family: inherit; }
+    input, textarea, button { font-size: inherit; }
+
+    /* ── Layout ── */
+    .ql-app { display: flex; flex-direction: column; height: 100vh; }
+    .ql-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px; height: 56px; flex-shrink: 0;
+      background: #18181b; border-bottom: 1px solid #27272a;
+    }
+    .ql-header-left { display: flex; align-items: center; gap: 12px; }
+    .ql-logo {
+      font-size: 16px; font-weight: 700; color: #fff;
+      letter-spacing: -0.02em;
+    }
+    .ql-logo-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; border-radius: 8px;
+      background: linear-gradient(135deg, #818cf8 0%, #6366f1 50%, #4f46e5 100%);
+      margin-right: 10px; vertical-align: middle;
+    }
+    .ql-logo-icon svg { width: 16px; height: 16px; }
+    .ql-badge {
+      font-size: 11px; font-weight: 500; color: #a1a1aa;
+      background: #27272a; padding: 2px 10px; border-radius: 100px;
+      letter-spacing: 0.02em;
+    }
+    .ql-status { font-size: 13px; color: #71717a; display: flex; align-items: center; gap: 8px; }
+
+    .ql-main { display: flex; flex: 1; min-height: 0; }
+
+    /* ── Left Panel: Chat ── */
+    .ql-chat {
+      width: 420px; min-width: 360px; display: flex; flex-direction: column;
+      background: #18181b; border-right: 1px solid #27272a;
+    }
+    .ql-chat-header {
+      padding: 16px 20px; border-bottom: 1px solid #27272a;
+      font-size: 12px; font-weight: 600; color: #71717a;
+      text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .ql-messages {
+      flex: 1; overflow-y: auto; padding: 20px;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    .ql-messages::-webkit-scrollbar { width: 6px; }
+    .ql-messages::-webkit-scrollbar-track { background: transparent; }
+    .ql-messages::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+
+    .ql-empty-state {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px; padding: 40px;
+    }
+    .ql-empty-icon {
+      width: 56px; height: 56px; border-radius: 16px;
+      background: linear-gradient(135deg, #312e81 0%, #1e1b4b 100%);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .ql-empty-icon svg { width: 28px; height: 28px; color: #818cf8; }
+    .ql-empty-title { font-size: 15px; font-weight: 600; color: #d4d4d8; }
+    .ql-empty-text { font-size: 13px; color: #71717a; text-align: center; line-height: 1.5; }
+
+    .ql-msg { display: flex; gap: 10px; animation: ql-fadeIn 0.25s ease-out; }
+    .ql-msg-user { flex-direction: row-reverse; }
+    .ql-msg-avatar {
+      width: 30px; height: 30px; border-radius: 10px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 600;
+    }
+    .ql-msg-user .ql-msg-avatar { background: #3730a3; color: #c7d2fe; }
+    .ql-msg-ai .ql-msg-avatar {
+      background: linear-gradient(135deg, #818cf8, #6366f1);
+      color: #fff;
+    }
+    .ql-msg-bubble {
+      padding: 10px 14px; border-radius: 14px; max-width: 85%;
+      font-size: 13.5px; line-height: 1.55; word-wrap: break-word;
+    }
+    .ql-msg-user .ql-msg-bubble {
+      background: #312e81; color: #e0e7ff; border-bottom-right-radius: 4px;
+    }
+    .ql-msg-ai .ql-msg-bubble {
+      background: #27272a; color: #d4d4d8; border-bottom-left-radius: 4px;
+    }
+    .ql-msg-error .ql-msg-bubble {
+      background: #450a0a; color: #fca5a5; border: 1px solid #7f1d1d;
+      border-bottom-left-radius: 4px;
+    }
+    .ql-msg-error .ql-msg-avatar { background: #7f1d1d; color: #fca5a5; }
+
+    .ql-typing {
+      display: flex; gap: 5px; padding: 4px 0;
+    }
+    .ql-typing span {
+      width: 7px; height: 7px; border-radius: 50%; background: #52525b;
+      animation: ql-bounce 1.4s ease-in-out infinite;
+    }
+    .ql-typing span:nth-child(2) { animation-delay: 0.16s; }
+    .ql-typing span:nth-child(3) { animation-delay: 0.32s; }
+
+    .ql-input-area {
+      padding: 16px 20px; border-top: 1px solid #27272a;
+    }
+    .ql-input-form {
+      display: flex; gap: 8px; align-items: center;
+      background: #27272a; border-radius: 14px; padding: 6px 6px 6px 16px;
+      border: 1px solid #3f3f46; transition: border-color 0.15s;
+    }
+    .ql-input-form:focus-within { border-color: #6366f1; }
+    .ql-input-form input {
+      flex: 1; background: transparent; border: none; outline: none;
+      color: #e4e4e7; font-size: 14px; padding: 6px 0;
+    }
+    .ql-input-form input::placeholder { color: #52525b; }
+    .ql-input-form button {
+      background: #6366f1; color: #fff; border: none; border-radius: 10px;
+      padding: 8px 16px; font-size: 13px; font-weight: 600;
+      transition: all 0.15s;
+    }
+    .ql-input-form button:hover { background: #4f46e5; }
+    .ql-input-form button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Right Panel ── */
+    .ql-workspace { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+    /* ── SQL Editor ── */
+    .ql-editor-section {
+      flex-shrink: 0; display: flex; flex-direction: column;
+      border-bottom: 1px solid #27272a;
+    }
+    .ql-editor-toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px; border-bottom: 1px solid #27272a;
+    }
+    .ql-editor-title {
+      font-size: 12px; font-weight: 600; color: #71717a;
+      text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .ql-run-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #059669; color: #fff; border: none; border-radius: 8px;
+      padding: 7px 14px; font-size: 12px; font-weight: 600;
+      transition: all 0.15s; letter-spacing: 0.01em;
+    }
+    .ql-run-btn:hover { background: #047857; }
+    .ql-run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .ql-run-btn svg { width: 14px; height: 14px; }
+    .ql-run-shortcut {
+      font-size: 10px; color: rgba(255,255,255,0.5);
+      background: rgba(255,255,255,0.15); padding: 2px 6px;
+      border-radius: 4px; margin-left: 4px;
+    }
+    .ql-editor-wrap { padding: 12px 20px 16px; }
+    .ql-sql-textarea {
+      width: 100%; min-height: 140px; max-height: 300px; resize: vertical;
+      background: #0c0c0f; color: #a5f3fc; border: 1px solid #27272a;
+      border-radius: 12px; padding: 16px; font-size: 13px; line-height: 1.6;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'JetBrains Mono', 'Consolas', monospace;
+      outline: none; tab-size: 2; transition: border-color 0.15s;
+    }
+    .ql-sql-textarea:focus { border-color: #3f3f46; }
+    .ql-sql-textarea::placeholder { color: #3f3f46; }
+
+    /* ── Results ── */
+    .ql-results-section { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    .ql-results-toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px; border-bottom: 1px solid #27272a; flex-shrink: 0;
+    }
+    .ql-results-title {
+      font-size: 12px; font-weight: 600; color: #71717a;
+      text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .ql-row-count {
+      font-size: 12px; color: #52525b; font-variant-numeric: tabular-nums;
+    }
+    .ql-results-body {
+      flex: 1; overflow: auto; padding: 0;
+    }
+    .ql-results-body::-webkit-scrollbar { width: 6px; height: 6px; }
+    .ql-results-body::-webkit-scrollbar-track { background: transparent; }
+    .ql-results-body::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+
+    .ql-results-empty {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; height: 100%; gap: 12px; color: #52525b;
+    }
+    .ql-results-empty svg { width: 40px; height: 40px; color: #3f3f46; }
+    .ql-results-empty span { font-size: 13px; }
+
+    /* ── Table ── */
+    .ql-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .ql-table th {
+      position: sticky; top: 0; z-index: 2;
+      background: #1c1c21; color: #a1a1aa; font-weight: 600;
+      text-align: left; padding: 10px 16px; font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      border-bottom: 1px solid #27272a; white-space: nowrap;
+    }
+    .ql-table td {
+      padding: 9px 16px; color: #d4d4d8; white-space: nowrap;
+      border-bottom: 1px solid rgba(39,39,42,0.5);
+      font-variant-numeric: tabular-nums;
+    }
+    .ql-table tr:hover td { background: rgba(99,102,241,0.04); }
+    .ql-table .ql-null { color: #52525b; font-style: italic; font-size: 11px; }
+
+    .ql-truncated {
+      padding: 8px 20px; font-size: 12px; color: #d97706;
+      background: rgba(217,119,6,0.08); border-bottom: 1px solid #27272a;
+    }
+
+    .ql-error-box {
+      margin: 20px; padding: 14px 18px; border-radius: 10px;
+      background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2);
+      color: #fca5a5; font-size: 13px; line-height: 1.5;
+    }
+
+    /* ── Spinner ── */
     .ql-spinner {
-      border: 2px solid #e5e7eb;
-      border-top: 2px solid #6366f1;
-      border-radius: 50%;
-      width: 16px;
-      height: 16px;
-      animation: spin 0.8s linear infinite;
-      display: inline-block;
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid #3f3f46; border-top-color: #818cf8;
+      animation: ql-spin 0.7s linear infinite; display: inline-block;
     }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+    .ql-spinner-sm { width: 14px; height: 14px; }
+    .ql-loading-row {
+      display: flex; align-items: center; justify-content: center;
+      gap: 10px; padding: 40px; color: #71717a; font-size: 13px;
     }
-    .ql-sql-editor {
-      font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
-      tab-size: 2;
-      resize: vertical;
-    }
-    .ql-results-table th {
-      position: sticky;
-      top: 0;
-      z-index: 1;
+
+    /* ── Animations ── */
+    @keyframes ql-spin { to { transform: rotate(360deg); } }
+    @keyframes ql-fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes ql-bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-5px); }
     }
   </style>
-  <%= csrf_meta_tags %>
 </head>
-<body class="bg-gray-50 h-screen flex flex-col">
+<body>
   <%= yield %>
 </body>
 </html>
