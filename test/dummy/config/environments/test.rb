@@ -5,4 +5,6 @@ Rails.application.configure do
   config.action_dispatch.show_exceptions = :rescuable
   config.active_support.deprecation = :stderr
   config.secret_key_base = "test-secret-key-base-for-query-lens-dummy-app"
+  config.active_record.migration_error = false
+  config.active_record.maintain_test_schema = false
 end

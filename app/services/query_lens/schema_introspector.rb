@@ -16,6 +16,8 @@ module QueryLens
       solid_queue_semaphores
       solid_cache_entries
       solid_cable_messages
+      query_lens_projects
+      query_lens_saved_queries
     ].freeze
 
     # Schema cache: stores { schema: [...], generated_at: Time }

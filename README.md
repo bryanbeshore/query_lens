@@ -8,6 +8,7 @@ Powered by [RubyLLM](https://rubyllm.com), QueryLens works with any major AI pro
 
 - Natural language to SQL conversion powered by any LLM
 - Works with OpenAI, Anthropic, Gemini, Ollama, and 10+ other providers
+- **Saved queries** organized into projects (like Blazer) — save, edit, move, and reuse known-good queries
 - Automatic database schema introspection with caching
 - Smart schema handling for large databases (two-stage table selection)
 - Interactive conversation with context (follow-up questions refine queries)
@@ -30,11 +31,13 @@ Then run:
 ```bash
 bundle install
 rails generate query_lens:install
+rails db:migrate
 ```
 
 This will:
 1. Create `config/initializers/query_lens.rb` with RubyLLM and QueryLens configuration
 2. Add the engine route to your `config/routes.rb`
+3. Create the `query_lens_projects` and `query_lens_saved_queries` tables for saved query persistence
 
 ## Configuration
 
@@ -80,6 +83,29 @@ Visit `/query_lens` in your browser and start asking questions:
 - "What's the total revenue by plan?"
 - "Show me the top 10 accounts by transaction volume"
 - "Break that down by month" (follow-up questions work!)
+
+## Saved Queries
+
+QueryLens supports saving queries for reuse, organized into projects (e.g., "Rewards", "User Analytics"). Saved queries are shared across all admins.
+
+### Saving a Query
+
+1. Run a query (via AI or manually)
+2. Switch to the **Saved Queries** tab in the left panel
+3. Click **Save Query**
+4. Enter a name, optional description, and optionally assign to a project
+
+### Projects
+
+Projects are folders for organizing saved queries. Create them from the Saved Queries toolbar. When a project is deleted, its queries are moved to "Unorganized" rather than being destroyed.
+
+### Loading a Saved Query
+
+Click any saved query to load its SQL into the editor and auto-run it. The view switches back to the Conversation tab so you can see results immediately.
+
+### Managing Queries
+
+Use the kebab menu (three dots) on any project or query to rename, edit, move between projects, or delete.
 
 ## How Schema Handling Works
 

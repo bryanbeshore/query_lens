@@ -4,4 +4,7 @@ QueryLens::Engine.routes.draw do
   get "info", to: "queries#info"
   post "execute", to: "queries#execute"
   post "generate", to: "ai#generate"
+
+  resources :projects, only: [:index, :create, :update, :destroy]
+  resources :saved_queries, only: [:create, :update, :destroy]
 end

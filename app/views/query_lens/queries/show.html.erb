@@ -2,6 +2,8 @@
      data-execute-url="<%= query_lens.execute_path %>"
      data-generate-url="<%= query_lens.generate_path %>"
      data-info-url="<%= query_lens.info_path %>"
+     data-projects-url="<%= query_lens.projects_path %>"
+     data-saved-queries-url="<%= query_lens.saved_queries_path %>"
      class="ql-app">
 
   <!-- Header -->
@@ -24,7 +26,28 @@
 
     <!-- Chat Panel -->
     <div class="ql-chat">
-      <div class="ql-chat-header">Conversation</div>
+      <div class="ql-tab-bar">
+        <button class="ql-tab ql-tab-active" id="ql-tab-chat" type="button">Conversation</button>
+        <button class="ql-tab" id="ql-tab-saved" type="button">Saved Queries</button>
+      </div>
+
+      <!-- Saved Queries Content (hidden by default) -->
+      <div class="ql-saved-panel" id="ql-saved-panel" style="display:none;">
+        <div class="ql-saved-toolbar">
+          <button class="ql-saved-btn" id="ql-add-project-btn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+            Project
+          </button>
+          <button class="ql-saved-btn ql-saved-btn-primary" id="ql-save-query-btn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            Save Query
+          </button>
+        </div>
+        <div class="ql-saved-list" id="ql-saved-list"></div>
+      </div>
+
+      <!-- Chat Content -->
+      <div class="ql-chat-content" id="ql-chat-content">
       <div class="ql-restricted-banner" id="ql-restricted-banner" style="display:none;">
         <button class="ql-restricted-toggle" id="ql-restricted-toggle" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -52,6 +75,7 @@
           </div>
         </div>
       </div>
+      </div><!-- /.ql-chat-content -->
       <div class="ql-input-area">
         <form class="ql-input-form" id="ql-form">
           <input type="text" id="ql-input" placeholder="Ask a question about your data..." autocomplete="off">
@@ -103,6 +127,8 @@
   const executeUrl = app.dataset.executeUrl;
   const generateUrl = app.dataset.generateUrl;
   const infoUrl = app.dataset.infoUrl;
+  const projectsUrl = app.dataset.projectsUrl;
+  const savedQueriesUrl = app.dataset.savedQueriesUrl;
 
   const el = {
     messages:  document.getElementById('ql-messages'),
@@ -120,6 +146,13 @@
     restrictedChevron: document.getElementById('ql-restricted-chevron'),
     restrictedCount: document.getElementById('ql-restricted-count'),
     restrictedList: document.getElementById('ql-restricted-list'),
+    tabChat:    document.getElementById('ql-tab-chat'),
+    tabSaved:   document.getElementById('ql-tab-saved'),
+    chatContent: document.getElementById('ql-chat-content'),
+    savedPanel:  document.getElementById('ql-saved-panel'),
+    savedList:   document.getElementById('ql-saved-list'),
+    addProjectBtn: document.getElementById('ql-add-project-btn'),
+    saveQueryBtn:  document.getElementById('ql-save-query-btn'),
   };
 
   let conversation = [];
@@ -382,15 +415,19 @@
   function setRunning(on) { el.runBtn.disabled = on; }
 
   // ── Helpers ──
-  async function post(url, body) {
+  async function request(url, method, body) {
     const token = document.querySelector('meta[name="csrf-token"]')?.content;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token || '' },
-      body: JSON.stringify(body)
-    });
+    const opts = {
+      method: method || 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token || '' }
+    };
+    if (body !== undefined) opts.body = JSON.stringify(body);
+    const res = await fetch(url, opts);
+    if (res.status === 204) return null;
     return res.json();
   }
+
+  async function post(url, body) { return request(url, 'POST', body); }
 
   function formatTime(date) {
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
@@ -405,6 +442,293 @@
     const d = document.createElement('div');
     d.textContent = s;
     return d.innerHTML;
+  }
+
+  // ── Tab Switching ──
+  function switchTab(tab) {
+    if (tab === 'saved') {
+      el.tabSaved.classList.add('ql-tab-active');
+      el.tabChat.classList.remove('ql-tab-active');
+      el.savedPanel.style.display = 'flex';
+      el.chatContent.style.display = 'none';
+      loadSavedQueries();
+    } else {
+      el.tabChat.classList.add('ql-tab-active');
+      el.tabSaved.classList.remove('ql-tab-active');
+      el.chatContent.style.display = 'flex';
+      el.savedPanel.style.display = 'none';
+    }
+  }
+
+  el.tabChat.addEventListener('click', () => switchTab('chat'));
+  el.tabSaved.addEventListener('click', () => switchTab('saved'));
+
+  // ── Saved Queries ──
+  let savedData = { projects: [], unorganized: [] };
+  let collapsedProjects = {};
+
+  async function loadSavedQueries() {
+    try {
+      const data = await request(projectsUrl, 'GET');
+      savedData = data;
+      renderSavedList();
+    } catch (e) { /* silently fail */ }
+  }
+
+  function renderSavedList() {
+    let html = '';
+
+    savedData.projects.forEach(project => {
+      const collapsed = collapsedProjects[project.id];
+      html += '<div class="ql-saved-project">';
+      html += '<div class="ql-saved-project-header" data-project-id="' + project.id + '">';
+      html += '<svg class="ql-saved-chevron' + (collapsed ? '' : ' ql-open') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+      html += '<svg class="ql-saved-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+      html += '<span class="ql-saved-project-name">' + esc(project.name) + '</span>';
+      html += '<span class="ql-saved-count">' + project.saved_queries.length + '</span>';
+      html += '<button class="ql-kebab" data-menu="project-' + project.id + '" type="button">&#8942;</button>';
+      html += '</div>';
+
+      // Kebab menu
+      html += '<div class="ql-kebab-menu" id="menu-project-' + project.id + '" style="display:none;">';
+      html += '<button data-action="rename-project" data-id="' + project.id + '" data-name="' + esc(project.name) + '">Rename</button>';
+      html += '<button data-action="delete-project" data-id="' + project.id + '">Delete</button>';
+      html += '</div>';
+
+      if (!collapsed) {
+        project.saved_queries.forEach(q => {
+          html += renderQueryItem(q);
+        });
+      }
+      html += '</div>';
+    });
+
+    if (savedData.unorganized.length > 0) {
+      html += '<div class="ql-saved-project">';
+      html += '<div class="ql-saved-project-header ql-saved-unorg">';
+      html += '<svg class="ql-saved-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>';
+      html += '<span class="ql-saved-project-name">Unorganized</span>';
+      html += '<span class="ql-saved-count">' + savedData.unorganized.length + '</span>';
+      html += '</div>';
+      savedData.unorganized.forEach(q => {
+        html += renderQueryItem(q);
+      });
+      html += '</div>';
+    }
+
+    if (savedData.projects.length === 0 && savedData.unorganized.length === 0) {
+      html = '<div class="ql-saved-empty">No saved queries yet. Run a query and click "Save Query" to get started.</div>';
+    }
+
+    el.savedList.innerHTML = html;
+    bindSavedListEvents();
+  }
+
+  function renderQueryItem(q) {
+    let html = '<div class="ql-saved-query" data-query-id="' + q.id + '" data-sql="' + esc(q.sql).replace(/"/g, '&quot;') + '">';
+    html += '<svg class="ql-saved-query-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>';
+    html += '<div class="ql-saved-query-info"><div class="ql-saved-query-name">' + esc(q.name) + '</div>';
+    if (q.description) html += '<div class="ql-saved-query-desc">' + esc(q.description) + '</div>';
+    html += '</div>';
+    html += '<button class="ql-kebab" data-menu="query-' + q.id + '" type="button">&#8942;</button>';
+    html += '</div>';
+
+    html += '<div class="ql-kebab-menu" id="menu-query-' + q.id + '" style="display:none;">';
+    html += '<button data-action="edit-query" data-id="' + q.id + '">Edit</button>';
+    html += '<button data-action="move-query" data-id="' + q.id + '">Move</button>';
+    html += '<button data-action="delete-query" data-id="' + q.id + '">Delete</button>';
+    html += '</div>';
+
+    return html;
+  }
+
+  function bindSavedListEvents() {
+    // Project collapse/expand
+    el.savedList.querySelectorAll('.ql-saved-project-header[data-project-id]').forEach(header => {
+      header.addEventListener('click', (e) => {
+        if (e.target.closest('.ql-kebab')) return;
+        const id = header.dataset.projectId;
+        collapsedProjects[id] = !collapsedProjects[id];
+        renderSavedList();
+      });
+    });
+
+    // Load query on click
+    el.savedList.querySelectorAll('.ql-saved-query').forEach(item => {
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.ql-kebab')) return;
+        const sql = item.dataset.sql;
+        el.sql.value = sql;
+        switchTab('chat');
+        runQuery();
+      });
+    });
+
+    // Kebab toggles
+    el.savedList.querySelectorAll('.ql-kebab').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const menuId = 'menu-' + btn.dataset.menu;
+        const menu = document.getElementById(menuId);
+        // Close all other menus
+        el.savedList.querySelectorAll('.ql-kebab-menu').forEach(m => { if (m.id !== menuId) m.style.display = 'none'; });
+        menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+      });
+    });
+
+    // Menu actions
+    el.savedList.querySelectorAll('[data-action]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const action = btn.dataset.action;
+        const id = btn.dataset.id;
+        // Close menu
+        btn.closest('.ql-kebab-menu').style.display = 'none';
+
+        if (action === 'rename-project') renameProject(id, btn.dataset.name);
+        else if (action === 'delete-project') deleteProject(id);
+        else if (action === 'edit-query') editQuery(id);
+        else if (action === 'move-query') moveQuery(id);
+        else if (action === 'delete-query') deleteQuery(id);
+      });
+    });
+  }
+
+  // Close kebab menus on outside click
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.ql-kebab-menu').forEach(m => m.style.display = 'none');
+  });
+
+  // ── Project CRUD ──
+  el.addProjectBtn.addEventListener('click', async () => {
+    const name = prompt('Project name:');
+    if (!name || !name.trim()) return;
+    try {
+      await request(projectsUrl, 'POST', { name: name.trim() });
+      loadSavedQueries();
+    } catch (e) { alert('Failed to create project'); }
+  });
+
+  async function renameProject(id, currentName) {
+    const name = prompt('Rename project:', currentName);
+    if (!name || !name.trim() || name.trim() === currentName) return;
+    try {
+      await request(projectsUrl + '/' + id, 'PATCH', { name: name.trim() });
+      loadSavedQueries();
+    } catch (e) { alert('Failed to rename project'); }
+  }
+
+  async function deleteProject(id) {
+    if (!confirm('Delete this project? Queries will be moved to Unorganized.')) return;
+    try {
+      await request(projectsUrl + '/' + id, 'DELETE');
+      loadSavedQueries();
+    } catch (e) { alert('Failed to delete project'); }
+  }
+
+  // ── Save Query ──
+  el.saveQueryBtn.addEventListener('click', () => {
+    const sql = el.sql.value.trim();
+    if (!sql) { alert('No SQL in the editor to save.'); return; }
+    showSaveModal(sql);
+  });
+
+  function showSaveModal(sql, existing) {
+    // Remove any existing modal
+    const old = document.getElementById('ql-save-modal');
+    if (old) old.remove();
+
+    const isEdit = !!existing;
+    const modal = document.createElement('div');
+    modal.id = 'ql-save-modal';
+    modal.className = 'ql-modal-overlay';
+
+    let projectOptions = '<option value="">(None)</option>';
+    savedData.projects.forEach(p => {
+      const sel = (existing && existing.project_id === p.id) ? ' selected' : '';
+      projectOptions += '<option value="' + p.id + '"' + sel + '>' + esc(p.name) + '</option>';
+    });
+
+    modal.innerHTML =
+      '<div class="ql-modal">' +
+      '<div class="ql-modal-title">' + (isEdit ? 'Edit Saved Query' : 'Save Current Query') + '</div>' +
+      '<label class="ql-modal-label">Name</label>' +
+      '<input class="ql-modal-input" id="ql-save-name" value="' + (existing ? esc(existing.name) : '') + '" placeholder="e.g. Monthly revenue">' +
+      '<label class="ql-modal-label">Description <span style="color:#52525b">(optional)</span></label>' +
+      '<input class="ql-modal-input" id="ql-save-desc" value="' + (existing ? esc(existing.description || '') : '') + '" placeholder="What does this query do?">' +
+      '<label class="ql-modal-label">Project</label>' +
+      '<select class="ql-modal-input" id="ql-save-project">' + projectOptions + '</select>' +
+      '<div class="ql-modal-actions">' +
+      '<button class="ql-modal-btn ql-modal-btn-cancel" id="ql-save-cancel">Cancel</button>' +
+      '<button class="ql-modal-btn ql-modal-btn-save" id="ql-save-confirm">' + (isEdit ? 'Update' : 'Save') + '</button>' +
+      '</div></div>';
+
+    document.body.appendChild(modal);
+
+    document.getElementById('ql-save-name').focus();
+
+    document.getElementById('ql-save-cancel').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+    document.getElementById('ql-save-confirm').addEventListener('click', async () => {
+      const name = document.getElementById('ql-save-name').value.trim();
+      if (!name) { alert('Name is required'); return; }
+      const desc = document.getElementById('ql-save-desc').value.trim();
+      const projectId = document.getElementById('ql-save-project').value || null;
+
+      const payload = { name: name, description: desc, sql: sql, project_id: projectId };
+
+      try {
+        if (isEdit) {
+          await request(savedQueriesUrl + '/' + existing.id, 'PATCH', payload);
+        } else {
+          await request(savedQueriesUrl, 'POST', payload);
+        }
+        modal.remove();
+        loadSavedQueries();
+      } catch (e) { alert('Failed to save query'); }
+    });
+  }
+
+  // ── Edit Query ──
+  function editQuery(id) {
+    const q = findQuery(id);
+    if (!q) return;
+    showSaveModal(q.sql, q);
+  }
+
+  // ── Move Query ──
+  async function moveQuery(id) {
+    const q = findQuery(id);
+    if (!q) return;
+    let choices = 'Move to project:\n0 - (None / Unorganized)';
+    savedData.projects.forEach((p, i) => { choices += '\n' + (i + 1) + ' - ' + p.name; });
+    const choice = prompt(choices);
+    if (choice === null) return;
+    const idx = parseInt(choice, 10);
+    const projectId = idx === 0 ? null : (savedData.projects[idx - 1] ? savedData.projects[idx - 1].id : null);
+    try {
+      await request(savedQueriesUrl + '/' + id, 'PATCH', { project_id: projectId });
+      loadSavedQueries();
+    } catch (e) { alert('Failed to move query'); }
+  }
+
+  // ── Delete Query ──
+  async function deleteQuery(id) {
+    if (!confirm('Delete this saved query?')) return;
+    try {
+      await request(savedQueriesUrl + '/' + id, 'DELETE');
+      loadSavedQueries();
+    } catch (e) { alert('Failed to delete query'); }
+  }
+
+  function findQuery(id) {
+    id = parseInt(id, 10);
+    for (const p of savedData.projects) {
+      const q = p.saved_queries.find(q => q.id === id);
+      if (q) return q;
+    }
+    return savedData.unorganized.find(q => q.id === id);
   }
 })();
 </script>

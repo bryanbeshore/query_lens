@@ -1,4 +1,4 @@
-ActiveRecord::Schema.define(version: 1) do
+ActiveRecord::Schema.define(version: 20260207000001) do
   create_table :users, force: true do |t|
     t.string :name
     t.string :email
@@ -18,4 +18,24 @@ ActiveRecord::Schema.define(version: 1) do
     t.string :description
     t.timestamps
   end
+
+  create_table :query_lens_projects, force: true do |t|
+    t.string :name, null: false
+    t.text :description
+    t.integer :position
+    t.timestamps
+  end
+
+  add_index :query_lens_projects, :name, unique: true
+
+  create_table :query_lens_saved_queries, force: true do |t|
+    t.string :name, null: false
+    t.text :description
+    t.text :sql, null: false
+    t.references :project, foreign_key: false
+    t.integer :position
+    t.timestamps
+  end
+
+  add_index :query_lens_saved_queries, [:project_id, :name], unique: true
 end

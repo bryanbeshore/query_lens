@@ -15,3 +15,27 @@ class ActiveSupport::TestCase
     end
   end
 end
+
+def create_query_lens_tables!
+  ActiveRecord::Schema.define do
+    create_table :query_lens_projects, force: true do |t|
+      t.string :name, null: false
+      t.text :description
+      t.integer :position
+      t.timestamps
+    end
+
+    add_index :query_lens_projects, :name, unique: true
+
+    create_table :query_lens_saved_queries, force: true do |t|
+      t.string :name, null: false
+      t.text :description
+      t.text :sql, null: false
+      t.references :project, foreign_key: false
+      t.integer :position
+      t.timestamps
+    end
+
+    add_index :query_lens_saved_queries, [:project_id, :name], unique: true
+  end
+end

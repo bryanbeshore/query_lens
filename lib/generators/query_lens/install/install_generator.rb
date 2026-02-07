@@ -18,8 +18,9 @@ module QueryLens
         say "QueryLens installed successfully!", :green
         say ""
         say "Next steps:"
-        say "  1. Set your ANTHROPIC_API_KEY environment variable"
-        say "  2. Visit /query_lens in your browser"
+        say "  1. Run `rails db:migrate` to create QueryLens tables"
+        say "  2. Set your ANTHROPIC_API_KEY environment variable"
+        say "  3. Visit /query_lens in your browser"
         say ""
       end
     end
