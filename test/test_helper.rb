@@ -9,6 +9,7 @@ WebMock.disable_net_connect!
 class ActiveSupport::TestCase
   setup do
     QueryLens.reset_configuration!
+    QueryLens::SchemaIntrospector.clear_cache!
     RubyLLM.configure do |config|
       config.anthropic_api_key = "test-api-key"
     end

@@ -30,6 +30,16 @@ QueryLens.configure do |config|
   # Example: config.authentication = ->(controller) { controller.current_user&.admin? }
   # config.authentication = ->(controller) { true }
 
+  # Schema cache TTL in seconds (default: 300 / 5 minutes)
+  # Avoids re-querying the database schema on every AI request.
+  # config.schema_cache_ttl = 300
+
+  # Table selection threshold (default: 50)
+  # Schemas with more tables than this use a two-stage AI approach:
+  # first selecting relevant tables, then generating SQL with only those tables.
+  # This keeps token usage manageable for large databases.
+  # config.table_selection_threshold = 50
+
   # Optional: Use a separate read-only database connection
   # config.read_only_connection = ActiveRecord::Base.connected_to(role: :reading) { ActiveRecord::Base.connection }
 end

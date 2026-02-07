@@ -8,13 +8,14 @@ Powered by [RubyLLM](https://rubyllm.com), QueryLens works with any major AI pro
 
 - Natural language to SQL conversion powered by any LLM
 - Works with OpenAI, Anthropic, Gemini, Ollama, and 10+ other providers
-- Automatic database schema introspection
+- Automatic database schema introspection with caching
+- Smart schema handling for large databases (two-stage table selection)
 - Interactive conversation with context (follow-up questions refine queries)
 - Read-only query execution (safety enforced at transaction level)
 - Editable SQL editor with syntax highlighting
 - Results displayed as sortable tables
 - Configurable authentication, timeouts, and row limits
-- Zero frontend build step (Tailwind via CDN, vanilla JS)
+- Zero frontend dependencies (self-contained CSS, vanilla JS)
 
 ## Installation
 
@@ -61,6 +62,13 @@ QueryLens.configure do |config|
   config.authentication = ->(controller) {          # Auth check
     controller.current_user&.admin?
   }
+
+  # Schema cache TTL in seconds (default: 300 / 5 minutes)
+  # config.schema_cache_ttl = 300
+
+  # Table selection threshold (default: 50)
+  # Schemas larger than this use two-stage AI generation
+  # config.table_selection_threshold = 50
 end
 ```
 
@@ -73,25 +81,64 @@ Visit `/query_lens` in your browser and start asking questions:
 - "Show me the top 10 accounts by transaction volume"
 - "Break that down by month" (follow-up questions work!)
 
+## How Schema Handling Works
+
+QueryLens needs to tell the AI about your database structure so it can write accurate SQL. Naively sending your entire schema on every request would be slow and expensive for large databases. Here's how QueryLens handles this:
+
+### Schema Caching
+
+The database schema is introspected once and cached in memory. Subsequent AI requests reuse the cached schema instead of re-querying every table, column, and row count from the database. The cache expires after 5 minutes by default (configurable via `schema_cache_ttl`).
+
+### Small Databases (< 50 tables)
+
+For most applications, the full schema is compact enough to send directly to the AI in a single request. Every table with its columns, types, foreign keys, and approximate row counts is included in the system prompt. This gives the AI complete context to write accurate queries.
+
+### Large Databases (50+ tables)
+
+For large schemas — hundreds of tables, thousands of columns — sending everything would burn excessive tokens, increase latency, and potentially exceed context windows. QueryLens uses a **two-stage approach** instead:
+
+**Stage 1 — Table Selection:** A compact index is sent to the AI — one line per table listing just the table name, column names, and row count. The AI identifies which tables (typically 3-10) are relevant to the user's question.
+
+**Stage 2 — Query Generation:** The full schema (columns, types, foreign keys, constraints) for only the selected tables is sent to the AI, which generates the SQL query.
+
+This mirrors how a human DBA works: scan the table list, zero in on the relevant ones, then examine their structure. It also mirrors how tools like Claude Code work — they don't load an entire codebase into context, they search for and read only the relevant files.
+
+The threshold is configurable via `table_selection_threshold` (default: 50 tables). For databases right around the threshold, you can tune this based on your preference for completeness vs. speed.
+
 ## Security
 
 QueryLens enforces multiple layers of safety:
 
 1. **Read-only transactions**: All queries run inside `SET TRANSACTION READ ONLY` (PostgreSQL)
-2. **SQL parsing**: Rejects any statement that isn't a SELECT
-3. **Statement blocklist**: Blocks INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, TRUNCATE, GRANT, REVOKE
-4. **Row limits**: Configurable max rows (default 1000)
-5. **Authentication**: Configurable auth lambda to restrict access
-6. **Schema filtering**: Exclude sensitive tables from AI context
+2. **SQL parsing**: Rejects any statement that isn't a SELECT or WITH (CTE)
+3. **Statement blocklist**: Blocks INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, TRUNCATE, GRANT, REVOKE, EXECUTE, CALL
+4. **Semicolon blocking**: Prevents multi-statement injection
+5. **Function blocklist**: Blocks dangerous PostgreSQL functions (pg_sleep, pg_terminate_backend, etc.)
+6. **Query timeout**: Configurable per-query timeout enforced at the database level
+7. **Row limits**: Configurable max rows (default 1000)
+8. **Authentication**: Configurable auth lambda to restrict access
+9. **Schema filtering**: Exclude sensitive tables from AI context via `excluded_tables`
 
 **Important**: Always restrict access to QueryLens in production using the `authentication` config option. Even with read-only enforcement, database access should be limited to authorized users.
+
+### Read-Only Connection (Recommended for Production)
+
+For production use, point QueryLens at a read-only database replica or a connection using a read-only PostgreSQL user:
+
+```ruby
+QueryLens.configure do |config|
+  config.read_only_connection = ActiveRecord::Base.connected_to(role: :reading) {
+    ActiveRecord::Base.connection
+  }
+end
+```
 
 ## Requirements
 
 - Rails 7.1+
 - Ruby 3.1+
 - An API key for any [RubyLLM-supported provider](https://rubyllm.com) (or a local Ollama instance)
-- PostgreSQL recommended (SQLite works but without `SET TRANSACTION READ ONLY`)
+- PostgreSQL recommended (SQLite works but without transaction-level read-only enforcement)
 
 ## Development
 

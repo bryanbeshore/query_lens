@@ -2,9 +2,30 @@ require "test_helper"
 
 class QueryLens::SqlGeneratorTest < ActiveSupport::TestCase
   setup do
-    @generator = QueryLens::SqlGenerator.new(
-      schema_prompt: "users (id, name, email)\naccounts (id, name, plan)"
-    )
+    @small_schema = [
+      {
+        name: "users",
+        columns: [
+          { name: "id", type: "integer", null: false, default: nil, primary_key: true },
+          { name: "name", type: "varchar", null: true, default: nil, primary_key: false },
+          { name: "email", type: "varchar", null: true, default: nil, primary_key: false }
+        ],
+        foreign_keys: [],
+        approximate_row_count: 100
+      },
+      {
+        name: "accounts",
+        columns: [
+          { name: "id", type: "integer", null: false, default: nil, primary_key: true },
+          { name: "name", type: "varchar", null: true, default: nil, primary_key: false },
+          { name: "plan", type: "varchar", null: true, default: nil, primary_key: false }
+        ],
+        foreign_keys: [],
+        approximate_row_count: 50
+      }
+    ]
+
+    @generator = QueryLens::SqlGenerator.new(schema: @small_schema)
   end
 
   test "generates SQL from API response" do
@@ -50,6 +71,42 @@ class QueryLens::SqlGeneratorTest < ActiveSupport::TestCase
 
     result = @generator.generate(messages: messages)
     assert_includes result[:sql], "GROUP BY"
+  end
+
+  test "uses two-stage generation when schema exceeds threshold" do
+    # Set threshold low so our small schema triggers two-stage
+    QueryLens.configure { |c| c.table_selection_threshold = 1 }
+
+    # Stage 1: table selection call returns table names
+    # Stage 2: query generation call returns SQL
+    stub_request(:post, "https://api.anthropic.com/v1/messages")
+      .to_return(
+        { # Stage 1: table selection
+          status: 200,
+          headers: { "Content-Type" => "application/json" },
+          body: {
+            id: "msg_select", type: "message", role: "assistant",
+            content: [{ type: "text", text: "users" }],
+            model: "claude-sonnet-4-5-20250929", stop_reason: "end_turn",
+            usage: { input_tokens: 50, output_tokens: 10 }
+          }.to_json
+        },
+        { # Stage 2: SQL generation
+          status: 200,
+          headers: { "Content-Type" => "application/json" },
+          body: {
+            id: "msg_gen", type: "message", role: "assistant",
+            content: [{ type: "text", text: "Count of users.\n\n```sql\nSELECT COUNT(*) FROM users\n```" }],
+            model: "claude-sonnet-4-5-20250929", stop_reason: "end_turn",
+            usage: { input_tokens: 100, output_tokens: 50 }
+          }.to_json
+        }
+      )
+
+    generator = QueryLens::SqlGenerator.new(schema: @small_schema)
+    result = generator.generate(messages: [{ role: "user", content: "How many users?" }])
+
+    assert_equal "SELECT COUNT(*) FROM users", result[:sql]
   end
 
   private

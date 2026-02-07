@@ -18,6 +18,30 @@ module QueryLens
       solid_cable_messages
     ].freeze
 
+    # Schema cache: stores { schema: [...], generated_at: Time }
+    @cache = nil
+    @cache_mutex = Mutex.new
+
+    class << self
+      def cached_schema(connection: nil, ttl: nil)
+        ttl ||= QueryLens.configuration.schema_cache_ttl
+
+        @cache_mutex.synchronize do
+          if @cache && (Time.now - @cache[:generated_at]) < ttl
+            return @cache[:schema]
+          end
+
+          schema = new(connection: connection).introspect
+          @cache = { schema: schema, generated_at: Time.now }
+          schema
+        end
+      end
+
+      def clear_cache!
+        @cache_mutex.synchronize { @cache = nil }
+      end
+    end
+
     def initialize(connection: nil)
       @connection = connection || ActiveRecord::Base.connection
     end
@@ -27,11 +51,33 @@ module QueryLens
       tables.sort.map { |table| introspect_table(table) }
     end
 
+    # Full schema prompt (all tables) — used for small schemas
     def to_prompt
-      schema = introspect
+      format_schema(introspect)
+    end
+
+    # Compact index: one line per table with column names, for table selection stage
+    def self.compact_index(schema)
+      lines = ["Tables in this database:", ""]
+      schema.each do |table|
+        col_names = table[:columns].map { |c| c[:name] }.join(", ")
+        lines << "#{table[:name]} (#{col_names}) ~#{table[:approximate_row_count]} rows"
+      end
+      lines.join("\n")
+    end
+
+    # Full schema prompt for only the specified tables
+    def self.prompt_for_tables(schema, table_names)
+      selected = schema.select { |t| table_names.include?(t[:name]) }
+      return "No matching tables found." if selected.empty?
+
+      new.format_schema(selected)
+    end
+
+    def format_schema(tables)
       lines = ["Database Schema:", ""]
 
-      schema.each do |table|
+      tables.each do |table|
         lines << "#{table[:name]} (~#{table[:approximate_row_count]} rows)"
         table[:columns].each do |col|
           parts = ["  #{col[:name]}: #{col[:type]}"]
