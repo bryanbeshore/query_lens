@@ -92,9 +92,8 @@ QueryLens supports saving queries for reuse, organized into projects (e.g., "Rew
 ### Saving a Query
 
 1. Run a query (via AI or manually)
-2. Switch to the **Saved Queries** tab in the left panel
-3. Click **Save Query**
-4. Enter a name, optional description, and optionally assign to a project
+2. Click **Save** in the sidebar's Saved Queries section
+3. Enter a name, optional description, and optionally assign to a project
 
 ### Projects
 
@@ -102,7 +101,7 @@ Projects are folders for organizing saved queries. Create them from the Saved Qu
 
 ### Loading a Saved Query
 
-Click any saved query to load its SQL into the editor and auto-run it. The view switches back to the Conversation tab so you can see results immediately.
+Click any saved query in the sidebar to load its SQL into the editor and auto-run it.
 
 ### Managing Queries
 
@@ -116,7 +115,7 @@ Conversations auto-save as you chat — no save button needed. A page refresh pr
 
 - **First message** in a new chat creates a conversation (titled from your first question)
 - **Subsequent messages** update the conversation automatically after each AI response
-- **Conversation sidebar** appears in the left panel on the Conversation tab, showing recent chats with relative timestamps
+- **Conversation sidebar** shows recent chats in the left sidebar under "Recents"
 - Click any conversation to restore it — messages, SQL editor, and all
 - Click **New Chat** to start fresh
 - Delete conversations with the × button (appears on hover)
@@ -272,6 +271,10 @@ end
 - Ruby 3.1+
 - An API key for any [RubyLLM-supported provider](https://rubyllm.com) (or a local Ollama instance)
 - PostgreSQL recommended (SQLite works but without transaction-level read-only enforcement)
+
+## Try It Out
+
+The [QueryLens Testbed](https://github.com/bryanbeshore/query_lens_testbed) is a standalone Rails app with seed data you can use to try QueryLens locally without integrating it into your own project first.
 
 ## Development
 
