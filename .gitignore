@@ -3,5 +3,6 @@
 /pkg/
 /tmp/
 /log/
+test/dummy/log/
 *.gem
 .byebug_history
