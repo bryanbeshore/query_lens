@@ -68,6 +68,51 @@
     .ql-tab:hover { color: #a1a1aa; }
     .ql-tab-active { color: #818cf8; border-bottom-color: #6366f1; }
 
+    /* ── Conversation History ── */
+    .ql-conversation-history {
+      border-bottom: 1px solid #27272a; flex-shrink: 0;
+    }
+    .ql-new-chat-btn {
+      display: flex; align-items: center; gap: 8px; width: 100%;
+      padding: 10px 16px; background: none; border: none;
+      color: #818cf8; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .ql-new-chat-btn:hover { background: rgba(99,102,241,0.08); }
+    .ql-new-chat-btn svg { width: 16px; height: 16px; }
+    .ql-conversation-list {
+      max-height: 200px; overflow-y: auto;
+    }
+    .ql-conversation-list::-webkit-scrollbar { width: 6px; }
+    .ql-conversation-list::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+    .ql-conversation-divider {
+      padding: 4px 16px 6px; font-size: 10px; font-weight: 600; color: #52525b;
+      text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .ql-conversation-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 16px; cursor: pointer; transition: background 0.15s;
+      font-size: 13px; color: #a1a1aa; border-left: 3px solid transparent;
+    }
+    .ql-conversation-item:hover { background: rgba(99,102,241,0.06); }
+    .ql-conversation-item-active {
+      border-left-color: #6366f1; background: rgba(99,102,241,0.08); color: #e4e4e7;
+    }
+    .ql-conversation-title {
+      flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .ql-conversation-time {
+      font-size: 11px; color: #52525b; flex-shrink: 0;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    }
+    .ql-conversation-delete {
+      background: none; border: none; color: #52525b; font-size: 16px;
+      padding: 0 4px; cursor: pointer; line-height: 1;
+      opacity: 0; transition: opacity 0.15s, color 0.15s;
+    }
+    .ql-conversation-item:hover .ql-conversation-delete { opacity: 1; }
+    .ql-conversation-delete:hover { color: #ef4444; }
+
     /* ── Saved Queries Panel ── */
     .ql-saved-panel {
       flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden;

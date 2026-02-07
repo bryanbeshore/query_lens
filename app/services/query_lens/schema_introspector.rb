@@ -18,6 +18,7 @@ module QueryLens
       solid_cable_messages
       query_lens_projects
       query_lens_saved_queries
+      query_lens_conversations
     ].freeze
 
     # Schema cache: stores { schema: [...], generated_at: Time }

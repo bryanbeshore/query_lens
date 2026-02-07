@@ -19,5 +19,14 @@ class CreateQueryLensTables < ActiveRecord::Migration[7.1]
     end
 
     add_index :query_lens_saved_queries, [:project_id, :name], unique: true
+
+    create_table :query_lens_conversations do |t|
+      t.string :title, null: false
+      t.text :messages
+      t.text :last_sql
+      t.timestamps
+    end
+
+    add_index :query_lens_conversations, :updated_at
   end
 end

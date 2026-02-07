@@ -37,5 +37,14 @@ def create_query_lens_tables!
     end
 
     add_index :query_lens_saved_queries, [:project_id, :name], unique: true
+
+    create_table :query_lens_conversations, force: true do |t|
+      t.string :title, null: false
+      t.text :messages
+      t.text :last_sql
+      t.timestamps
+    end
+
+    add_index :query_lens_conversations, :updated_at
   end
 end

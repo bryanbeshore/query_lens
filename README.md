@@ -11,6 +11,7 @@ Powered by [RubyLLM](https://rubyllm.com), QueryLens works with any major AI pro
 - **Saved queries** organized into projects (like Blazer) — save, edit, move, and reuse known-good queries
 - Automatic database schema introspection with caching
 - Smart schema handling for large databases (two-stage table selection)
+- **Conversation history** — auto-saved conversations persist across page refreshes, with a Claude.ai-style sidebar for browsing recent chats
 - Interactive conversation with context (follow-up questions refine queries)
 - Read-only query execution (safety enforced at transaction level)
 - Editable SQL editor with syntax highlighting
@@ -37,7 +38,7 @@ rails db:migrate
 This will:
 1. Create `config/initializers/query_lens.rb` with RubyLLM and QueryLens configuration
 2. Add the engine route to your `config/routes.rb`
-3. Create the `query_lens_projects` and `query_lens_saved_queries` tables for saved query persistence
+3. Create the `query_lens_projects`, `query_lens_saved_queries`, and `query_lens_conversations` tables
 
 ## Configuration
 
@@ -106,6 +107,21 @@ Click any saved query to load its SQL into the editor and auto-run it. The view 
 ### Managing Queries
 
 Use the kebab menu (three dots) on any project or query to rename, edit, move between projects, or delete.
+
+## Conversation History
+
+Conversations auto-save as you chat — no save button needed. A page refresh preserves your full conversation history, including the SQL editor state.
+
+### How It Works
+
+- **First message** in a new chat creates a conversation (titled from your first question)
+- **Subsequent messages** update the conversation automatically after each AI response
+- **Conversation sidebar** appears in the left panel on the Conversation tab, showing recent chats with relative timestamps
+- Click any conversation to restore it — messages, SQL editor, and all
+- Click **New Chat** to start fresh
+- Delete conversations with the × button (appears on hover)
+
+Conversations are shared across all admins (no per-user scoping), matching the pattern of saved queries. The most recent 50 conversations are shown in the sidebar.
 
 ## How Schema Handling Works
 

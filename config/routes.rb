@@ -7,4 +7,5 @@ QueryLens::Engine.routes.draw do
 
   resources :projects, only: [:index, :create, :update, :destroy]
   resources :saved_queries, only: [:create, :update, :destroy]
+  resources :conversations, only: [:index, :show, :create, :update, :destroy]
 end
