@@ -15,7 +15,7 @@ Thanks for your interest in contributing! Here's how to get started.
 ## What to expect
 
 - PRs are typically reviewed within a few days
-- CI must pass before merge (tests run on Ruby 3.1, 3.2, and 3.3)
+- CI must pass before merge (tests run on Ruby 3.2 and 3.3)
 - Small, focused PRs are easier to review and more likely to land quickly
 - If your change is large or introduces a new feature, consider opening an issue first to discuss the approach
 
