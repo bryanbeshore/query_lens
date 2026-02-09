@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2 — 2026-02-09
+
+- Fix: follow-up questions no longer generate unwanted new SQL queries — the LLM now responds conversationally when appropriate ([#2](https://github.com/bryanbeshore/query_lens/issues/2))
+- Fix: assistant responses without SQL are now preserved in conversation history, maintaining context for subsequent messages
+
 ## 0.1.1 — 2026-02-09
 
 - Fix: include `db/` directory in gemspec so migrations are shipped with the gem ([#1](https://github.com/bryanbeshore/query_lens/issues/1))
