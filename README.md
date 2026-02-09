@@ -4,9 +4,9 @@ A mountable Rails engine that lets users write natural language questions and ge
 
 Powered by [RubyLLM](https://rubyllm.com), QueryLens works with any major AI provider: OpenAI, Anthropic (Claude), Google Gemini, DeepSeek, Mistral, Ollama (local models), and more.
 
-[Watch the demo (90 seconds)](https://www.loom.com/share/595ed0ea3c1f42b28152a345db586c85)
+![QueryLens Screenshot](docs/screenshot.png)
 
-[![QueryLens Demo](https://cdn.loom.com/sessions/thumbnails/595ed0ea3c1f42b28152a345db586c85-with-play.gif)](https://www.loom.com/share/595ed0ea3c1f42b28152a345db586c85)
+[Watch the demo (90 seconds)](https://www.loom.com/share/595ed0ea3c1f42b28152a345db586c85)
 
 **Want to try it without touching your own database?** The [QueryLens Testbed](https://github.com/bryanbeshore/query_lens_testbed) is a ready-to-go Rails app with sample data — clone, run, and start querying in under 2 minutes.
 
