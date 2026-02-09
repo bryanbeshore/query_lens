@@ -227,6 +227,22 @@ QueryLens.configure do |config|
 end
 ```
 
+## Production Checklist
+
+Before deploying QueryLens to a production environment, especially one with sensitive data:
+
+1. **Restrict access with authentication.** Never run QueryLens without an `authentication` lambda. Limit access to specific admin roles — not everyone who can log in should be able to query your database.
+
+2. **Point it at a read-only replica.** A runaway query (big joins, full table scans) hitting your primary database can affect production performance. A replica isolates that blast radius. See [Read-Only Connection](#read-only-connection-recommended-for-production) above.
+
+3. **Use a read-only database user.** Belt and suspenders. Even with transaction-level read-only enforcement, connecting via a PostgreSQL user with only `SELECT` grants means the database itself won't allow writes regardless of what happens at the application level.
+
+4. **Exclude sensitive tables.** Any table containing PII, credentials, financial secrets, or data that shouldn't be queryable — add it to `excluded_tables`. The AI will never see these tables, and manual queries against them are blocked at execution time.
+
+5. **Enable audit logging.** Log every query, every blocked attempt, with the user and IP address. If someone queries something they shouldn't, you want to know. See [Audit Logging](#audit-logging) above.
+
+6. **Review your schema exposure.** QueryLens sends your database schema (table names, column names, types, foreign keys) to your configured LLM provider. If your schema itself is sensitive, consider using a local model via Ollama instead of a cloud provider.
+
 ## Mounting with Active Admin
 
 If you use [Active Admin](https://activeadmin.info), you can mount QueryLens under your admin path and reuse Active Admin's authentication:
