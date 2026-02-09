@@ -14,8 +14,9 @@ module QueryLens
       - Always include an ORDER BY clause when it makes sense (e.g., by date descending, by amount descending).
 
       RESPONSE FORMAT:
-      Respond with a brief explanation of what the query does, then the SQL query wrapped in ```sql code fences.
-      Keep explanations concise (1-2 sentences).
+      - When the user asks for data or wants a new/modified query: respond with a brief explanation (1-2 sentences), then the SQL query wrapped in ```sql code fences.
+      - When the user asks about the results, asks what a column means, wants clarification, or is discussing the data: respond conversationally WITHOUT SQL code fences. The existing query and results will remain visible.
+      - Only include ```sql code fences when you are providing a new or modified query.
 
       DATABASE SCHEMA:
       %{schema}

@@ -253,9 +253,9 @@
       }
 
       if (data.explanation) addMessage('ai', data.explanation, genTime);
+      conversation.push({ role: 'assistant', content: data.raw || data.explanation });
       if (data.sql) {
         el.sql.value = data.sql;
-        conversation.push({ role: 'assistant', content: data.raw || data.explanation });
         await runQueryWithTrace(trace);
       } else {
         addTrace(trace);
