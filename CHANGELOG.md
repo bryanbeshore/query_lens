@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1 — 2026-02-09
+
+- Fix: include `db/` directory in gemspec so migrations are shipped with the gem ([#1](https://github.com/bryanbeshore/query_lens/issues/1))
+
 ## 0.1.0 — 2026-02-07
 
 Initial release.
