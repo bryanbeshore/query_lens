@@ -284,7 +284,7 @@ end
 ## Requirements
 
 - Rails 7.1+
-- Ruby 3.1+
+- Ruby 3.2+
 - An API key for any [RubyLLM-supported provider](https://rubyllm.com) (or a local Ollama instance)
 - PostgreSQL recommended (SQLite works but without transaction-level read-only enforcement)
 
