@@ -4,5 +4,6 @@
 /tmp/
 /log/
 test/dummy/log/
+test/tmp/
 *.gem
 .byebug_history

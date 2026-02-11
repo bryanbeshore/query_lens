@@ -1,4 +1,4 @@
-class CreateQueryLensTables < ActiveRecord::Migration[7.1]
+class CreateQueryLensTables < ActiveRecord::Migration[<%= ActiveRecord::Migration.current_version %>]
   def change
     create_table :query_lens_projects do |t|
       t.string :name, null: false
