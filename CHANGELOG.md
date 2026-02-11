@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3 — 2026-02-11
+
+- Migrations are now copied into the host app via `rails generate query_lens:install` instead of being loaded automatically from the engine ([#6](https://github.com/bryanbeshore/query_lens/pull/6))
+- Add upgrade note to README for users with existing tables
+
 ## 0.1.2 — 2026-02-09
 
 - Fix: follow-up questions no longer generate unwanted new SQL queries — the LLM now responds conversationally when appropriate ([#2](https://github.com/bryanbeshore/query_lens/issues/2))
