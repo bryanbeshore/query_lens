@@ -1,12 +1,19 @@
+require "rails/generators/active_record/migration"
+
 module QueryLens
   module Generators
     class InstallGenerator < Rails::Generators::Base
+      include ActiveRecord::Generators::Migration
       source_root File.expand_path("templates", __dir__)
 
-      desc "Creates a QueryLens initializer and adds the engine route."
+      desc "Creates a QueryLens initializer, copies migrations, and adds the engine route."
 
       def copy_initializer
         template "initializer.rb", "config/initializers/query_lens.rb"
+      end
+
+      def copy_migrations
+        migration_template "create_query_lens_tables.rb.tt", "db/migrate/create_query_lens_tables.rb"
       end
 
       def add_route
