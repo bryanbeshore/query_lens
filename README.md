@@ -43,8 +43,10 @@ rails db:migrate
 
 This will:
 1. Create `config/initializers/query_lens.rb` with RubyLLM and QueryLens configuration
-2. Add the engine route to your `config/routes.rb`
-3. Create the `query_lens_projects`, `query_lens_saved_queries`, and `query_lens_conversations` tables
+2. Copy the migration to create the `query_lens_projects`, `query_lens_saved_queries`, and `query_lens_conversations` tables
+3. Add the engine route to your `config/routes.rb`
+
+> **Upgrading from a previous version?** If you already ran migrations from an earlier release (before the install generator included them), your tables are already in place. Just run `rails generate query_lens:install` and skip or discard the generated migration file — no need to migrate again.
 
 ## Configuration
 
