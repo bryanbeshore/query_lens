@@ -23,7 +23,7 @@ Powered by [RubyLLM](https://rubyllm.com), QueryLens works with any major AI pro
 - Interactive conversation with context (follow-up questions refine queries)
 - Read-only query execution (safety enforced at transaction level)
 - Editable SQL editor with syntax highlighting
-- Results displayed as sortable tables
+- Results displayed as sortable tables with **Chart.js charting** (bar, line, pie, scatter) and auto-detected chart types
 - Configurable authentication, timeouts, and row limits
 - Zero frontend dependencies (self-contained CSS, vanilla JS)
 

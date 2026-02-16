@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0 — 2026-02-15
+
+- Add Chart.js charting to query results with a Table/Chart toggle
+- Auto-detect chart type based on column data (line for dates, pie for low-cardinality categories, bar for high-cardinality, scatter for numeric pairs)
+- Chart controls for switching type, X axis, and Y axis columns
+- Dark-themed charts matching the existing UI
+
 ## 0.1.3 — 2026-02-11
 
 - Migrations are now copied into the host app via `rails generate query_lens:install` instead of being loaded automatically from the engine ([#6](https://github.com/bryanbeshore/query_lens/pull/6))
