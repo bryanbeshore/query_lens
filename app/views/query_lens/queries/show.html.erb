@@ -178,6 +178,8 @@
   let conversation = [];
   let currentConversationId = null;
   let conversationsList = [];
+  let chartInstance = null;
+  let lastResultData = null;
 
   // ── Load restricted tables ──
   (async function loadInfo() {
@@ -286,6 +288,10 @@
     if (!sql) return;
 
     setRunning(true);
+    destroyChart();
+    lastResultData = null;
+    const oldToggle = document.querySelector('.ql-chart-toggle');
+    if (oldToggle) oldToggle.remove();
     el.results.innerHTML = '<div class="ql-loading-row"><div class="ql-spinner"></div>Running query...</div>';
     el.rowCount.textContent = '';
 
@@ -324,33 +330,260 @@
     }
   }
 
+  // ── Chart Constants ──
+  const CHART_COLORS = ['#818CF8','#F472B6','#34D399','#FBBF24','#60A5FA','#A78BFA','#FB923C','#2DD4BF','#E879F9','#4ADE80'];
+
+  // ── Column Classification ──
+  function classifyColumns(data) {
+    const sampleRows = data.rows.slice(0, 20);
+    return data.columns.map((col, i) => {
+      const values = sampleRows.map(r => r[i]).filter(v => v !== null && v !== undefined && String(v).trim() !== '');
+      if (values.length === 0) return { name: col, index: i, type: 'categorical' };
+      const dateCount = values.filter(v => /^\d{4}-\d{2}-\d{2}/.test(String(v))).length;
+      if (dateCount / values.length > 0.7) return { name: col, index: i, type: 'date' };
+      const numCount = values.filter(v => !isNaN(Number(v))).length;
+      if (numCount / values.length > 0.7) return { name: col, index: i, type: 'numeric' };
+      return { name: col, index: i, type: 'categorical' };
+    });
+  }
+
+  function isChartable(classified) {
+    if (classified.length < 2) return false;
+    return classified.some(c => c.type === 'numeric');
+  }
+
+  function autoDetectChart(classified, data) {
+    const dates = classified.filter(c => c.type === 'date');
+    const nums = classified.filter(c => c.type === 'numeric');
+    const cats = classified.filter(c => c.type === 'categorical');
+
+    let type = 'bar', xCol = classified[0], yCol = nums[0];
+
+    if (dates.length > 0 && nums.length > 0) {
+      type = 'line'; xCol = dates[0]; yCol = nums[0];
+    } else if (cats.length > 0 && nums.length > 0) {
+      const uniqueLabels = new Set(data.rows.map(r => r[cats[0].index]));
+      if (uniqueLabels.size <= 10) { type = 'pie'; xCol = cats[0]; yCol = nums[0]; }
+      else { type = 'bar'; xCol = cats[0]; yCol = nums[0]; }
+    } else if (nums.length >= 2 && cats.length === 0 && dates.length === 0) {
+      type = 'scatter'; xCol = nums[0]; yCol = nums[1];
+    }
+
+    return { type, xIndex: xCol.index, yIndex: yCol.index };
+  }
+
+  // ── Chart Rendering ──
+  function destroyChart() {
+    if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+  }
+
+  function renderChart(data, chartType, xIndex, yIndex) {
+    destroyChart();
+    const container = document.getElementById('ql-chart-container');
+    if (!container) return;
+    container.innerHTML = '<canvas id="ql-chart-canvas"></canvas>';
+    const canvas = document.getElementById('ql-chart-canvas');
+    const ctx = canvas.getContext('2d');
+
+    const labels = data.rows.map(r => r[xIndex] === null ? '' : String(r[xIndex]));
+    const values = data.rows.map(r => r[yIndex] === null ? null : Number(r[yIndex]));
+    const xLabel = data.columns[xIndex];
+    const yLabel = data.columns[yIndex];
+
+    const baseOpts = {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#a1a1aa', font: { size: 12 } } },
+        tooltip: { backgroundColor: '#27272a', titleColor: '#e4e4e7', bodyColor: '#d4d4d8', borderColor: '#3f3f46', borderWidth: 1 }
+      }
+    };
+
+    let config;
+
+    if (chartType === 'pie') {
+      config = {
+        type: 'pie',
+        data: {
+          labels: labels,
+          datasets: [{ data: values, backgroundColor: CHART_COLORS.slice(0, labels.length), borderColor: '#0f0f12', borderWidth: 2 }]
+        },
+        options: { ...baseOpts, plugins: { ...baseOpts.plugins, legend: { position: 'right', labels: { color: '#a1a1aa', font: { size: 11 }, padding: 12 } } } }
+      };
+    } else if (chartType === 'scatter') {
+      const points = data.rows.map(r => ({
+        x: r[xIndex] === null ? null : Number(r[xIndex]),
+        y: r[yIndex] === null ? null : Number(r[yIndex])
+      })).filter(p => p.x !== null && p.y !== null);
+      config = {
+        type: 'scatter',
+        data: { datasets: [{ data: points, backgroundColor: CHART_COLORS[0], borderColor: CHART_COLORS[0], pointRadius: 4 }] },
+        options: {
+          ...baseOpts,
+          plugins: { ...baseOpts.plugins, legend: { display: false } },
+          scales: {
+            x: { title: { display: true, text: xLabel, color: '#a1a1aa' }, ticks: { color: '#71717a' }, grid: { color: '#1c1c21' } },
+            y: { title: { display: true, text: yLabel, color: '#a1a1aa' }, ticks: { color: '#71717a' }, grid: { color: '#1c1c21' } }
+          }
+        }
+      };
+    } else {
+      // bar or line
+      config = {
+        type: chartType,
+        data: {
+          labels: labels,
+          datasets: [{
+            label: yLabel,
+            data: values,
+            backgroundColor: chartType === 'line' ? 'rgba(129,140,248,0.15)' : CHART_COLORS[0],
+            borderColor: CHART_COLORS[0],
+            borderWidth: chartType === 'line' ? 2 : 0,
+            fill: chartType === 'line',
+            tension: 0.3,
+            pointBackgroundColor: CHART_COLORS[0],
+            pointRadius: chartType === 'line' ? 3 : 0,
+            borderRadius: chartType === 'bar' ? 4 : 0
+          }]
+        },
+        options: {
+          ...baseOpts,
+          plugins: { ...baseOpts.plugins, legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#71717a', maxRotation: 45, font: { size: 11 } }, grid: { color: '#1c1c21' } },
+            y: { ticks: { color: '#71717a', font: { size: 11 } }, grid: { color: '#1c1c21' }, beginAtZero: true }
+          }
+        }
+      };
+    }
+
+    chartInstance = new Chart(ctx, config);
+  }
+
   // ── Render Results ──
   function renderResults(data) {
+    destroyChart();
+    lastResultData = null;
+
     if (!data.columns || !data.columns.length) {
       el.results.innerHTML = '<div class="ql-results-empty"><span>Query returned no results</span></div>';
       el.rowCount.textContent = '';
+      // Remove chart toggle if present
+      const oldToggle = document.querySelector('.ql-chart-toggle');
+      if (oldToggle) oldToggle.remove();
       return;
     }
 
-    let html = '';
-    if (data.truncated) html += '<div class="ql-truncated">Results truncated to ' + data.row_count + ' rows</div>';
+    // Build table HTML
+    let tableHtml = '';
+    if (data.truncated) tableHtml += '<div class="ql-truncated">Results truncated to ' + data.row_count + ' rows</div>';
 
-    html += '<table class="ql-table"><thead><tr>';
-    data.columns.forEach(c => { html += '<th>' + esc(c) + '</th>'; });
-    html += '</tr></thead><tbody>';
+    tableHtml += '<table class="ql-table"><thead><tr>';
+    data.columns.forEach(c => { tableHtml += '<th>' + esc(c) + '</th>'; });
+    tableHtml += '</tr></thead><tbody>';
 
     data.rows.forEach(row => {
-      html += '<tr>';
+      tableHtml += '<tr>';
       row.forEach(cell => {
-        if (cell === null) html += '<td><span class="ql-null">NULL</span></td>';
-        else html += '<td>' + esc(String(cell)) + '</td>';
+        if (cell === null) tableHtml += '<td><span class="ql-null">NULL</span></td>';
+        else tableHtml += '<td>' + esc(String(cell)) + '</td>';
       });
-      html += '</tr>';
+      tableHtml += '</tr>';
     });
+    tableHtml += '</tbody></table>';
 
-    html += '</tbody></table>';
-    el.results.innerHTML = html;
+    // Check if chartable
+    const classified = classifyColumns(data);
+    const chartable = isChartable(classified);
+
+    // Build results area: table wrapper + chart container (hidden)
+    let resultsHtml = '<div id="ql-table-wrap">' + tableHtml + '</div>';
+    if (chartable) {
+      resultsHtml += '<div id="ql-chart-controls" class="ql-chart-controls" style="display:none;">';
+      resultsHtml += '<div class="ql-chart-control-group"><span class="ql-chart-label">Type</span>';
+      resultsHtml += '<select class="ql-chart-select" id="ql-chart-type-select"><option value="bar">Bar</option><option value="line">Line</option><option value="pie">Pie</option><option value="scatter">Scatter</option></select></div>';
+      resultsHtml += '<div class="ql-chart-control-group"><span class="ql-chart-label">X Axis</span>';
+      resultsHtml += '<select class="ql-chart-select" id="ql-chart-x-select">';
+      data.columns.forEach((c, i) => { resultsHtml += '<option value="' + i + '">' + esc(c) + '</option>'; });
+      resultsHtml += '</select></div>';
+      resultsHtml += '<div class="ql-chart-control-group"><span class="ql-chart-label">Y Axis</span>';
+      resultsHtml += '<select class="ql-chart-select" id="ql-chart-y-select">';
+      data.columns.forEach((c, i) => { resultsHtml += '<option value="' + i + '">' + esc(c) + '</option>'; });
+      resultsHtml += '</select></div>';
+      resultsHtml += '</div>';
+      resultsHtml += '<div id="ql-chart-container" class="ql-chart-container" style="display:none;"></div>';
+    }
+
+    el.results.innerHTML = resultsHtml;
     el.rowCount.textContent = data.row_count + ' row' + (data.row_count === 1 ? '' : 's') + (data.truncated ? ' (truncated)' : '');
+
+    // Add or remove toggle in toolbar
+    const oldToggle = document.querySelector('.ql-chart-toggle');
+    if (oldToggle) oldToggle.remove();
+
+    if (chartable) {
+      lastResultData = data;
+      const auto = autoDetectChart(classified, data);
+
+      // Create toggle in results toolbar
+      const toolbar = document.querySelector('.ql-results-toolbar');
+      const toggle = document.createElement('div');
+      toggle.className = 'ql-chart-toggle';
+      toggle.innerHTML = '<button class="ql-chart-toggle-btn active" data-view="table">Table</button>' +
+                         '<button class="ql-chart-toggle-btn" data-view="chart">Chart</button>';
+      toolbar.querySelector('.ql-results-title').after(toggle);
+
+      // Set auto-detected defaults on dropdowns
+      document.getElementById('ql-chart-type-select').value = auto.type;
+      document.getElementById('ql-chart-x-select').value = auto.xIndex;
+      document.getElementById('ql-chart-y-select').value = auto.yIndex;
+
+      let chartRendered = false;
+
+      // Toggle behavior
+      toggle.addEventListener('click', (e) => {
+        const btn = e.target.closest('.ql-chart-toggle-btn');
+        if (!btn) return;
+        const view = btn.dataset.view;
+        toggle.querySelectorAll('.ql-chart-toggle-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const tableWrap = document.getElementById('ql-table-wrap');
+        const chartControls = document.getElementById('ql-chart-controls');
+        const chartContainer = document.getElementById('ql-chart-container');
+
+        if (view === 'table') {
+          if (tableWrap) tableWrap.style.display = '';
+          if (chartControls) chartControls.style.display = 'none';
+          if (chartContainer) chartContainer.style.display = 'none';
+        } else {
+          if (tableWrap) tableWrap.style.display = 'none';
+          if (chartControls) chartControls.style.display = 'flex';
+          if (chartContainer) chartContainer.style.display = 'flex';
+          if (!chartRendered) {
+            renderChart(data,
+              document.getElementById('ql-chart-type-select').value,
+              parseInt(document.getElementById('ql-chart-x-select').value, 10),
+              parseInt(document.getElementById('ql-chart-y-select').value, 10)
+            );
+            chartRendered = true;
+          }
+        }
+      });
+
+      // Re-render chart on control changes
+      const rerender = () => {
+        if (!lastResultData) return;
+        chartRendered = true;
+        renderChart(lastResultData,
+          document.getElementById('ql-chart-type-select').value,
+          parseInt(document.getElementById('ql-chart-x-select').value, 10),
+          parseInt(document.getElementById('ql-chart-y-select').value, 10)
+        );
+      };
+      document.getElementById('ql-chart-type-select').addEventListener('change', rerender);
+      document.getElementById('ql-chart-x-select').addEventListener('change', rerender);
+      document.getElementById('ql-chart-y-select').addEventListener('change', rerender);
+    }
   }
 
   // ── Messages ──
@@ -533,7 +766,11 @@
       // Restore SQL editor
       el.sql.value = data.last_sql || '';
 
-      // Clear results
+      // Clear results and chart
+      destroyChart();
+      lastResultData = null;
+      const oldToggle = document.querySelector('.ql-chart-toggle');
+      if (oldToggle) oldToggle.remove();
       el.results.innerHTML = '<div class="ql-results-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0 1 12 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125M13.125 12h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125M20.625 12c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5M12 14.625v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 14.625c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m0 0v.375"/></svg><span>Run a query to see results</span></div>';
       el.rowCount.textContent = '';
 
@@ -544,6 +781,10 @@
   function startNewChat() {
     currentConversationId = null;
     conversation = [];
+    destroyChart();
+    lastResultData = null;
+    const oldToggle = document.querySelector('.ql-chart-toggle');
+    if (oldToggle) oldToggle.remove();
     el.messages.innerHTML = '<div class="ql-empty-state" id="ql-empty-state"><div class="ql-empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg></div><div class="ql-empty-title">Ask about your data</div><div class="ql-empty-text">Try something like:<br>"How many users signed up this month?"<br>"What\'s the total revenue by plan?"</div></div>';
     el.sql.value = '';
     el.results.innerHTML = '<div class="ql-results-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0 1 12 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125M13.125 12h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125M20.625 12c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5M12 14.625v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 14.625c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m0 0v.375"/></svg><span>Run a query to see results</span></div>';
