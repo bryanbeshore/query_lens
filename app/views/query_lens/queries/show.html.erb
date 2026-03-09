@@ -730,17 +730,17 @@
     el.conversationList.querySelectorAll('.ql-conversation-item').forEach(item => {
       item.addEventListener('click', (e) => {
         if (e.target.closest('.ql-conversation-delete')) return;
-        loadConversation(parseInt(item.dataset.conversationId, 10));
+        loadConversation(item.dataset.conversationId);
       });
     });
 
     el.conversationList.querySelectorAll('.ql-conversation-delete').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        const id = parseInt(btn.dataset.deleteId, 10);
+        const id = btn.dataset.deleteId;
         try {
           await request(conversationsUrl + '/' + id, 'DELETE');
-          if (currentConversationId === id) startNewChat();
+          if (String(currentConversationId) === String(id)) startNewChat();
           loadConversations();
         } catch (e) { /* silently fail */ }
       });
@@ -1093,12 +1093,11 @@
   }
 
   function findQuery(id) {
-    id = parseInt(id, 10);
     for (const p of savedData.projects) {
-      const q = p.saved_queries.find(q => q.id === id);
+      const q = p.saved_queries.find(q => String(q.id) === String(id));
       if (q) return q;
     }
-    return savedData.unorganized.find(q => q.id === id);
+    return savedData.unorganized.find(q => String(q.id) === String(id));
   }
 })();
 </script>
