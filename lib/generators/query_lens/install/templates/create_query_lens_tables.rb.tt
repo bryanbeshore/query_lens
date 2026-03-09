@@ -1,6 +1,6 @@
 class CreateQueryLensTables < ActiveRecord::Migration[<%= ActiveRecord::Migration.current_version %>]
   def change
-    create_table :query_lens_projects do |t|
+    create_table :query_lens_projects<%= ", id: :uuid" if uuid? %> do |t|
       t.string :name, null: false
       t.text :description
       t.integer :position
@@ -9,18 +9,18 @@ class CreateQueryLensTables < ActiveRecord::Migration[<%= ActiveRecord::Migratio
 
     add_index :query_lens_projects, :name, unique: true
 
-    create_table :query_lens_saved_queries do |t|
+    create_table :query_lens_saved_queries<%= ", id: :uuid" if uuid? %> do |t|
       t.string :name, null: false
       t.text :description
       t.text :sql, null: false
-      t.references :project, foreign_key: { to_table: :query_lens_projects, on_delete: :nullify }
+      t.references :project, type: :<%= uuid? ? "uuid" : "bigint" %>, foreign_key: { to_table: :query_lens_projects, on_delete: :nullify }
       t.integer :position
       t.timestamps
     end
 
     add_index :query_lens_saved_queries, [:project_id, :name], unique: true
 
-    create_table :query_lens_conversations do |t|
+    create_table :query_lens_conversations<%= ", id: :uuid" if uuid? %> do |t|
       t.string :title, null: false
       t.text :messages
       t.text :last_sql

@@ -44,6 +44,28 @@ class QueryLens::Generators::InstallGeneratorTest < Rails::Generators::TestCase
     end
   end
 
+  test "migration uses default bigint primary keys when app does not use uuid" do
+    run_generator
+    assert_migration "db/migrate/create_query_lens_tables.rb" do |content|
+      refute_match(/id: :uuid/, content)
+      assert_match(/type: :bigint/, content)
+    end
+  end
+
+  test "migration auto-detects uuid from app config" do
+    # Simulate app configured with UUID primary keys
+    original = Rails.application.config.generators.options.deep_dup
+    Rails.application.config.generators.options[:active_record] = { primary_key_type: :uuid }
+
+    run_generator
+    assert_migration "db/migrate/create_query_lens_tables.rb" do |content|
+      assert_match(/id: :uuid/, content)
+      assert_match(/type: :uuid/, content)
+    end
+  ensure
+    Rails.application.config.generators.options.replace(original)
+  end
+
   private
 
   def create_empty_routes_file
