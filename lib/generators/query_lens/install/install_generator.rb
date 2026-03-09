@@ -23,12 +23,21 @@ module QueryLens
       def show_post_install
         say ""
         say "QueryLens installed successfully!", :green
+        if uuid?
+          say "  Detected UUID primary keys — using UUID for all QueryLens tables.", :cyan
+        end
         say ""
         say "Next steps:"
         say "  1. Run `rails db:migrate` to create QueryLens tables"
         say "  2. Set your ANTHROPIC_API_KEY environment variable"
         say "  3. Visit /query_lens in your browser"
         say ""
+      end
+
+      private
+
+      def uuid?
+        Rails.application.config.generators.options.dig(:active_record, :primary_key_type).to_s == "uuid"
       end
     end
   end
