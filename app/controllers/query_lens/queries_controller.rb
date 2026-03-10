@@ -14,8 +14,8 @@ module QueryLens
     def execute
       sql = params[:sql].to_s.strip.chomp(";").strip
 
-      # Layer 1: Must start with SELECT or WITH (for CTEs)
-      unless sql.match?(/\A\s*(\(?\s*SELECT|WITH\s)/i)
+      # Layer 1: Must start with SELECT or WITH (for CTEs), allowing leading SQL comments
+      unless sql.match?(/\A\s*(\s*--[^\n]*\n\s*)*(\/\*.*?\*\/\s*)*(\(?\s*SELECT|WITH\s)/im)
         audit(action: "execute_blocked", sql: sql, error: "Not a SELECT")
         return render json: { error: "Only SELECT queries are allowed" }, status: :unprocessable_entity
       end
