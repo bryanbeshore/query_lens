@@ -128,6 +128,111 @@ class QueryLens::QueriesControllerTest < ActionDispatch::IntegrationTest
     assert_response :unauthorized
   end
 
+  # ── SQL comments and SELECT detection (Layer 1) ──
+
+  test "execute allows single-line comment before SELECT" do
+    post query_lens.execute_path, params: { sql: "-- comment\nSELECT name FROM users" }, as: :json
+    assert_response :success
+    assert_equal 2, JSON.parse(response.body)["row_count"]
+  end
+
+  test "execute allows multiple single-line comments before SELECT" do
+    sql = "-- first comment\n-- second comment\nSELECT name FROM users"
+    post query_lens.execute_path, params: { sql: sql }, as: :json
+    assert_response :success
+  end
+
+  test "execute allows block comment before SELECT" do
+    post query_lens.execute_path, params: { sql: "/* block comment */ SELECT name FROM users" }, as: :json
+    assert_response :success
+  end
+
+  test "execute allows mixed comments before SELECT" do
+    sql = "-- line comment\n/* block comment */ SELECT name FROM users"
+    post query_lens.execute_path, params: { sql: sql }, as: :json
+    assert_response :success
+  end
+
+  test "execute rejects DML hidden behind a comment" do
+    post query_lens.execute_path, params: { sql: "-- sneaky\nINSERT INTO users (name) VALUES ('x')" }, as: :json
+    assert_response :unprocessable_entity
+  end
+
+  test "execute rejects DROP hidden behind a comment" do
+    post query_lens.execute_path, params: { sql: "/* comment */ DROP TABLE users" }, as: :json
+    assert_response :unprocessable_entity
+  end
+
+  test "execute allows subquery with parenthesized SELECT" do
+    post query_lens.execute_path, params: { sql: "(SELECT name FROM users)" }, as: :json
+    assert_response :success
+  end
+
+  test "execute rejects empty query" do
+    post query_lens.execute_path, params: { sql: "" }, as: :json
+    assert_response :unprocessable_entity
+  end
+
+  test "execute rejects comment-only query" do
+    post query_lens.execute_path, params: { sql: "-- just a comment" }, as: :json
+    assert_response :unprocessable_entity
+  end
+
+  # ── DML/DDL keyword detection (Layer 2) ──
+
+  test "execute rejects ALTER statements" do
+    post query_lens.execute_path, params: { sql: "ALTER TABLE users ADD COLUMN foo text" }, as: :json
+    assert_response :unprocessable_entity
+  end
+
+  test "execute rejects CREATE statements" do
+    post query_lens.execute_path, params: { sql: "CREATE TABLE evil (id int)" }, as: :json
+    assert_response :unprocessable_entity
+  end
+
+  test "execute rejects GRANT statements" do
+    post query_lens.execute_path, params: { sql: "GRANT ALL ON users TO evil" }, as: :json
+    assert_response :unprocessable_entity
+  end
+
+  test "execute rejects REVOKE statements" do
+    post query_lens.execute_path, params: { sql: "REVOKE ALL ON users FROM someone" }, as: :json
+    assert_response :unprocessable_entity
+  end
+
+  test "execute rejects CALL statements" do
+    post query_lens.execute_path, params: { sql: "CALL some_procedure()" }, as: :json
+    assert_response :unprocessable_entity
+  end
+
+  test "execute allows column names containing DML keywords like created_at" do
+    post query_lens.execute_path, params: { sql: "SELECT created_at, updated_at FROM users" }, as: :json
+    assert_response :success
+  end
+
+  # ── Dangerous function detection (Layer 4) ──
+
+  test "execute rejects pg_cancel_backend" do
+    post query_lens.execute_path, params: { sql: "SELECT pg_cancel_backend(1234)" }, as: :json
+    assert_response :unprocessable_entity
+    assert_equal "This function is not allowed", JSON.parse(response.body)["error"]
+  end
+
+  test "execute rejects lo_import" do
+    post query_lens.execute_path, params: { sql: "SELECT lo_import('/etc/passwd')" }, as: :json
+    assert_response :unprocessable_entity
+  end
+
+  test "execute rejects lo_export" do
+    post query_lens.execute_path, params: { sql: "SELECT lo_export(1234, '/tmp/dump')" }, as: :json
+    assert_response :unprocessable_entity
+  end
+
+  test "execute rejects COPY command" do
+    post query_lens.execute_path, params: { sql: "COPY users TO '/tmp/dump'" }, as: :json
+    assert_response :unprocessable_entity
+  end
+
   # ── Excluded table enforcement ──
 
   test "execute blocks queries against excluded tables" do
