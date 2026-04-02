@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Add Snowflake support via [rb-snowflake-client](https://github.com/rinsed-org/rb-snowflake-client) — configure a Snowflake client to query warehouses with the same natural language interface
+- Schema introspection for Snowflake via `INFORMATION_SCHEMA` (tables, columns, row counts, primary keys)
+- Snowflake-specific SQL dialect hints in AI system prompt (ILIKE, DATE_TRUNC, QUALIFY, FLATTEN, etc.)
+- New configuration options: `snowflake_client`, `snowflake_database`, `snowflake_schema`, `snowflake_warehouse`, `snowflake_role`
+
 ## 0.2.0 — 2026-02-15
 
 - Add Chart.js charting to query results with a Table/Chart toggle

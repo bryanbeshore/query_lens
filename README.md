@@ -25,6 +25,7 @@ Powered by [RubyLLM](https://rubyllm.com), QueryLens works with any major AI pro
 - Editable SQL editor with syntax highlighting
 - Results displayed as sortable tables with **Chart.js charting** (bar, line, pie, scatter) and auto-detected chart types
 - Configurable authentication, timeouts, and row limits
+- **Snowflake support** via [rb-snowflake-client](https://github.com/rinsed-org/rb-snowflake-client) — query Snowflake warehouses with the same natural language interface
 - Zero frontend dependencies (self-contained CSS, vanilla JS)
 
 ## Installation
@@ -224,6 +225,40 @@ Actions logged:
 - `generate_error` — AI generation failed
 
 Audit logging is fail-safe: if your logger raises an error, the query still executes normally and the failure is logged to `Rails.logger.error`.
+
+### Snowflake
+
+QueryLens can query Snowflake data warehouses using [rb-snowflake-client](https://github.com/rinsed-org/rb-snowflake-client). When configured, all queries and schema introspection go through the Snowflake HTTP API instead of ActiveRecord.
+
+Add the gem to your Gemfile:
+
+```ruby
+gem "rb-snowflake-client"
+```
+
+Then configure QueryLens:
+
+```ruby
+QueryLens.configure do |config|
+  config.snowflake_client = RubySnowflake::Client.new(
+    "https://your-account.snowflakecomputing.com",
+    File.read("path/to/rsa_key.p8"),
+    "your-org",
+    "your-account",
+    "YOUR_USER"
+  )
+  config.snowflake_database = "MY_DATABASE"
+  config.snowflake_schema = "PUBLIC"
+  config.snowflake_warehouse = "MY_WAREHOUSE"
+  config.snowflake_role = "MY_ROLE"
+end
+```
+
+When Snowflake is configured:
+- Schema introspection queries `INFORMATION_SCHEMA` for tables, columns, and row counts
+- The AI receives Snowflake-specific SQL dialect hints (ILIKE, DATE_TRUNC, QUALIFY, etc.)
+- Query execution uses the Snowflake client directly — no ActiveRecord connection needed
+- All safety layers (SQL validation, excluded tables, row limits, audit logging) still apply
 
 ### Read-Only Connection (Recommended for Production)
 

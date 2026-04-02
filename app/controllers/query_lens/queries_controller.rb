@@ -7,7 +7,8 @@ module QueryLens
       render json: {
         excluded_tables: QueryLens.configuration.excluded_tables,
         max_rows: QueryLens.configuration.max_rows,
-        query_timeout: QueryLens.configuration.query_timeout
+        query_timeout: QueryLens.configuration.query_timeout,
+        data_sources: QueryLens.configuration.data_sources
       }
     end
 
@@ -32,10 +33,12 @@ module QueryLens
         return render json: { error: "Multiple statements are not allowed" }, status: :unprocessable_entity
       end
 
-      # Layer 4: Block dangerous PostgreSQL functions
-      if sql.match?(/\b(pg_sleep|pg_terminate_backend|pg_cancel_backend|lo_import|lo_export|copy\s)/i)
-        audit(action: "execute_blocked", sql: sql, error: "Dangerous function detected")
-        return render json: { error: "This function is not allowed" }, status: :unprocessable_entity
+      # Layer 4: Block dangerous PostgreSQL functions (skip for Snowflake)
+      unless params[:source] == "snowflake"
+        if sql.match?(/\b(pg_sleep|pg_terminate_backend|pg_cancel_backend|lo_import|lo_export|copy\s)/i)
+          audit(action: "execute_blocked", sql: sql, error: "Dangerous function detected")
+          return render json: { error: "This function is not allowed" }, status: :unprocessable_entity
+        end
       end
 
       # Layer 5: Block queries against excluded tables
@@ -48,6 +51,56 @@ module QueryLens
         end
       end
 
+      if params[:source] == "snowflake" && QueryLens.configuration.snowflake?
+        execute_snowflake(sql)
+      else
+        execute_activerecord(sql)
+      end
+    end
+
+    private
+
+    def execute_snowflake(sql)
+      config = QueryLens.configuration
+      client = config.snowflake_client
+
+      begin
+        started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+        result = client.query(
+          sql,
+          warehouse: config.snowflake_warehouse,
+          database: config.snowflake_database,
+          schema: config.snowflake_schema,
+          role: config.snowflake_role,
+          query_timeout: config.query_timeout
+        )
+
+        columns = result.columns.map(&:to_s)
+        rows = result.map { |row| columns.map { |col| row[col] } }
+
+        elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at) * 1000).round
+
+        max_rows = config.max_rows
+        truncated = rows.length > max_rows
+        rows = rows.first(max_rows) if truncated
+
+        audit(action: "execute", sql: sql, row_count: rows.length)
+
+        render json: {
+          columns: columns,
+          rows: rows,
+          row_count: rows.length,
+          truncated: truncated,
+          execution_ms: elapsed_ms
+        }
+      rescue => e
+        audit(action: "execute_error", sql: sql, error: e.message)
+        render json: { error: e.message }, status: :unprocessable_entity
+      end
+    end
+
+    def execute_activerecord(sql)
       connection = QueryLens.configuration.read_only_connection || ActiveRecord::Base.connection
       postgresql = connection.adapter_name.downcase.include?("postgresql")
       timeout = QueryLens.configuration.query_timeout

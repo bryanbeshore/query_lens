@@ -102,7 +102,11 @@
       <!-- SQL Editor -->
       <div class="ql-editor-section">
         <div class="ql-editor-toolbar">
-          <div class="ql-editor-title">SQL Editor</div>
+          <div class="ql-editor-title-row">
+            <div class="ql-editor-title">SQL Editor</div>
+            <select class="ql-source-select" id="ql-source-select" style="display:none;">
+            </select>
+          </div>
           <div class="ql-editor-actions">
             <button class="ql-save-btn" id="ql-save-query-btn">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -173,6 +177,7 @@
     savedSectionChevron: document.getElementById('ql-saved-section-chevron'),
     savedSectionContent: document.getElementById('ql-saved-section-content'),
     savedTotalCount: document.getElementById('ql-saved-total-count'),
+    sourceSelect: document.getElementById('ql-source-select'),
   };
 
   let conversation = [];
@@ -180,6 +185,7 @@
   let conversationsList = [];
   let chartInstance = null;
   let lastResultData = null;
+  let currentSource = 'activerecord';
 
   // ── Load restricted tables ──
   (async function loadInfo() {
@@ -192,6 +198,13 @@
           .map(t => '<span class="ql-restricted-tag">' + esc(t) + '</span>')
           .join('');
         el.restrictedBanner.style.display = 'block';
+      }
+      if (info.data_sources && info.data_sources.length > 1) {
+        el.sourceSelect.innerHTML = info.data_sources
+          .map(s => '<option value="' + esc(s.id) + '">' + esc(s.name) + '</option>')
+          .join('');
+        el.sourceSelect.style.display = '';
+        el.sourceSelect.addEventListener('change', () => { currentSource = el.sourceSelect.value; });
       }
     } catch (e) { /* silently fail */ }
   })();
@@ -231,7 +244,7 @@
     trace.push({ time: askTime, dot: 'blue', label: 'Question received' });
 
     try {
-      const data = await post(generateUrl, { messages: conversation });
+      const data = await post(generateUrl, { messages: conversation, source: currentSource });
       const genTime = new Date();
 
       if (data.error) {
@@ -296,7 +309,7 @@
     el.rowCount.textContent = '';
 
     try {
-      const data = await post(executeUrl, { sql });
+      const data = await post(executeUrl, { sql, source: currentSource });
       const execTime = new Date();
 
       if (data.error) {

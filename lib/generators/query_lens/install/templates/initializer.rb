@@ -61,4 +61,18 @@ QueryLens.configure do |config|
 
   # Optional: Use a separate read-only database connection
   # config.read_only_connection = ActiveRecord::Base.connected_to(role: :reading) { ActiveRecord::Base.connection }
+
+  # Optional: Use Snowflake instead of ActiveRecord (requires rb-snowflake-client gem)
+  # config.snowflake_client = RubySnowflake::Client.new(
+  #   "https://your-account.snowflakecomputing.com",
+  #   File.read("path/to/rsa_key.p8"),
+  #   "your-org",
+  #   "your-account",
+  #   "YOUR_USER",
+  #   max_pool_size: 5
+  # )
+  # config.snowflake_database = "MY_DATABASE"
+  # config.snowflake_schema = "PUBLIC"
+  # config.snowflake_warehouse = "MY_WAREHOUSE"
+  # config.snowflake_role = "MY_ROLE"
 end

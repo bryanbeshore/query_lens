@@ -3,11 +3,12 @@ module QueryLens
     def generate
       messages = params[:messages] || []
       messages = messages.map { |m| m.permit(:role, :content).to_h }
+      source = params[:source] || "activerecord"
 
       started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
-      schema = SchemaIntrospector.cached_schema
-      generator = SqlGenerator.new(schema: schema)
+      schema = SchemaIntrospector.cached_schema(source: source)
+      generator = SqlGenerator.new(schema: schema, source: source)
       result = generator.generate(messages: messages)
 
       elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at) * 1000).round

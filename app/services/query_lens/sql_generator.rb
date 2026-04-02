@@ -17,10 +17,24 @@ module QueryLens
       - When the user asks for data or wants a new/modified query: respond with a brief explanation (1-2 sentences), then the SQL query wrapped in ```sql code fences.
       - When the user asks about the results, asks what a column means, wants clarification, or is discussing the data: respond conversationally WITHOUT SQL code fences. The existing query and results will remain visible.
       - Only include ```sql code fences when you are providing a new or modified query.
-
+      %{dialect_hints}
       DATABASE SCHEMA:
       %{schema}
     PROMPT
+
+    SNOWFLAKE_HINTS = <<~HINTS
+
+      SNOWFLAKE SQL DIALECT:
+      - Use ILIKE for case-insensitive string matching instead of LOWER(col) LIKE.
+      - Use DATE_TRUNC('month', col) for date truncation (first argument is the part as a string).
+      - Use DATEADD(day, N, col) and DATEDIFF(day, start, end) for date arithmetic.
+      - Use TRY_CAST(col AS type) instead of CAST when type conversion might fail.
+      - Use QUALIFY with window functions to filter without subqueries (e.g., QUALIFY ROW_NUMBER() OVER (...) = 1).
+      - Use LIMIT for row limiting (not TOP).
+      - String concatenation uses || operator.
+      - Use FLATTEN(input => col) for semi-structured data (VARIANT/ARRAY/OBJECT columns).
+      - Use col:key syntax to access nested fields in VARIANT columns.
+    HINTS
 
     TABLE_SELECTION_PROMPT = <<~PROMPT
       You are a database schema analyst. Given a list of tables and a user's question, identify which tables are needed to answer the question.
@@ -35,9 +49,10 @@ module QueryLens
       %{compact_index}
     PROMPT
 
-    def initialize(schema:, model: nil)
+    def initialize(schema:, model: nil, source: "activerecord")
       @schema = schema
       @model = model || QueryLens.configuration.model
+      @source = source
     end
 
     def generate(messages:)
@@ -60,7 +75,8 @@ module QueryLens
     def generate_single_stage(messages, schema_prompt)
       system = SYSTEM_PROMPT % {
         schema: schema_prompt,
-        max_rows: QueryLens.configuration.max_rows
+        max_rows: QueryLens.configuration.max_rows,
+        dialect_hints: @source == "snowflake" ? SNOWFLAKE_HINTS : ""
       }
 
       chat = RubyLLM.chat(model: @model)
