@@ -228,7 +228,7 @@ Audit logging is fail-safe: if your logger raises an error, the query still exec
 
 ### Snowflake
 
-QueryLens can query Snowflake data warehouses using [rb-snowflake-client](https://github.com/rinsed-org/rb-snowflake-client). When configured, all queries and schema introspection go through the Snowflake HTTP API instead of ActiveRecord.
+QueryLens can query Snowflake data warehouses using [rb-snowflake-client](https://github.com/rinsed-org/rb-snowflake-client). When configured, a data source selector appears in the SQL Editor toolbar, letting users switch between your Rails database and Snowflake.
 
 Add the gem to your Gemfile:
 

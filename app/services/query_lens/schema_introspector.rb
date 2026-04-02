@@ -171,13 +171,14 @@ module QueryLens
         "ORDER BY TABLE_NAME"
       )
 
+      all_table_names = tables.map { |t| t["TABLE_NAME"].downcase }
+
       tables.filter_map do |row|
         table_name = row["TABLE_NAME"]
         next if excluded.include?(table_name.downcase)
 
         columns = snowflake_introspect_columns(table_name)
         pk_columns = snowflake_primary_keys(table_name)
-        all_table_names = tables.map { |t| t["TABLE_NAME"].downcase }
 
         columns.each do |col|
           col[:primary_key] = pk_columns.include?(col[:name])
